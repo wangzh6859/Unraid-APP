@@ -62,7 +62,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     const DashboardView(),
     const FileBrowserView(),
     const DockerView(),
-    const VmView(),
+    const MediaServerView(), // 新增 Emby/媒体库 视图
     const SettingsView(),
   ];
 
@@ -86,7 +86,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard, color: Color(0xFFFF5722)), label: '概览'),
           NavigationDestination(icon: Icon(Icons.folder_outlined), selectedIcon: Icon(Icons.folder, color: Color(0xFFFF5722)), label: '文件'),
           NavigationDestination(icon: Icon(Icons.view_in_ar_outlined), selectedIcon: Icon(Icons.view_in_ar, color: Color(0xFFFF5722)), label: '容器'),
-          NavigationDestination(icon: Icon(Icons.computer_outlined), selectedIcon: Icon(Icons.computer, color: Color(0xFFFF5722)), label: '虚拟机'),
+          NavigationDestination(icon: Icon(Icons.movie_filter_outlined), selectedIcon: Icon(Icons.movie_creation, color: Color(0xFFFF5722)), label: '影音'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings, color: Color(0xFFFF5722)), label: '设置'),
         ],
       ),
@@ -136,13 +136,19 @@ class DashboardView extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              _buildSectionTitle('系统负载', Icons.speed, textColor),
+              _buildSectionTitle('核心计算负载', Icons.speed, textColor),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: _buildSquareCard(context, 'CPU', '12%', '45°C', Icons.memory, Colors.blue)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildSquareCard(context, '内存', '45%', '14.4 GB', Icons.developer_board, Colors.purple)),
+                  Expanded(child: _buildSquareCard(context, 'GPU', '8%', '解码中 · 55°C', Icons.developer_board, Colors.green)), // 新增 GPU 卡片
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildWideCard(context, '内存使用率', '45%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: 0.45)),
                 ],
               ),
               const SizedBox(height: 24),
@@ -156,9 +162,9 @@ class DashboardView extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _buildNetCard(context, '下载速率', '12.4', 'MB/s', Icons.download_rounded, Colors.green)),
+                  Expanded(child: _buildNetCard(context, '下载速率', '12.4', 'MB/s', Icons.download_rounded, Colors.cyan)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildNetCard(context, '上传速率', '3.2', 'MB/s', Icons.upload_rounded, Colors.cyan)),
+                  Expanded(child: _buildNetCard(context, '上传速率', '3.2', 'MB/s', Icons.upload_rounded, Colors.indigo)),
                 ],
               ),
               const SizedBox(height: 30),
@@ -307,14 +313,143 @@ class DashboardView extends StatelessWidget {
   }
 }
 
+// ---------------- 影音/Emby页 ----------------
+class MediaServerView extends StatelessWidget {
+  const MediaServerView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('影音中心 (Emby)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () {}),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Emby 状态卡片
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF52B54B), Color(0xFF1E5B20)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.movie_creation, color: Colors.white, size: 28),
+                        SizedBox(width: 8),
+                        Text('Emby Server', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.all(Radius.circular(12))),
+                      child: Text('已连接', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    )
+                  ],
+                ),
+                SizedBox(height: 20),
+                Text('目前有 2 个客户端正在播放', style: TextStyle(color: Colors.white, fontSize: 16)),
+                SizedBox(height: 8),
+                Text('硬件解码 (NVDEC) 正在运行', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          const Text('正在播放', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 12),
+          
+          // 正在播放列表
+          _buildPlayingItem(context, '沙丘2 (Dune: Part Two)', '4K HDR10 • 转码中 (1080p)', '客厅 Apple TV', 0.45, 'assets/poster1.png', Colors.orange),
+          const SizedBox(height: 12),
+          _buildPlayingItem(context, '旺达幻视 (WandaVision) S01E03', '1080p • 直接播放', '元帅的 iPhone', 0.82, 'assets/poster2.png', Colors.purple),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayingItem(BuildContext context, String title, String spec, String device, double progress, String imgPath, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // 封面占位
+            Container(
+              width: 70,
+              height: 100,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.movie, color: color, size: 36),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black87)),
+                  const SizedBox(height: 4),
+                  Text(spec, style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.tv, size: 14, color: isDark ? Colors.white38 : Colors.black38),
+                      const SizedBox(width: 4),
+                      Text(device, style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: isDark ? Colors.white10 : Colors.black12,
+                      color: const Color(0xFF52B54B), // Emby Green
+                      minHeight: 4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------- 文件浏览页 ----------------
 class FileBrowserView extends StatelessWidget {
   const FileBrowserView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -352,7 +487,6 @@ class FileBrowserView extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // 模拟上传点击
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('触发上传文件...')));
         },
         icon: const Icon(Icons.upload_file),
@@ -407,10 +541,9 @@ class DockerView extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildDockerItem(context, 'Plex Media Server', 'linuxserver/plex', '运行中', true, Icons.play_circle_fill, Colors.amber),
+          _buildDockerItem(context, 'emby', 'emby/embyserver', '运行中', true, Icons.play_circle_fill, Colors.green),
           _buildDockerItem(context, 'Nextcloud', 'linuxserver/nextcloud', '运行中', true, Icons.cloud_circle, Colors.blue),
           _buildDockerItem(context, 'qBittorrent', 'linuxserver/qbittorrent', '运行中', true, Icons.downloading, Colors.blueAccent),
-          _buildDockerItem(context, 'HomeAssistant', 'homeassistant/home-assistant', '已停止', false, Icons.home_rounded, Colors.grey),
         ],
       ),
     );
@@ -451,10 +584,7 @@ class DockerView extends StatelessWidget {
                     children: [
                       Container(
                         width: 8, height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isRunning ? Colors.green : Colors.red,
-                        ),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: isRunning ? Colors.green : Colors.red),
                       ),
                       const SizedBox(width: 6),
                       Text(status, style: TextStyle(fontSize: 12, color: isRunning ? Colors.green : Colors.red, fontWeight: FontWeight.w600)),
@@ -548,13 +678,8 @@ class SettingsView extends StatelessWidget {
           ]),
           const SizedBox(height: 24),
           _buildSettingsGroup(context, '服务器', [
-            _buildSettingsItem(context, '连接地址', '192.168.1.100', Icons.lan_outlined),
-            _buildSettingsItem(context, 'API 密钥', '已配置', Icons.key_outlined),
-          ]),
-          const SizedBox(height: 24),
-          _buildSettingsGroup(context, '关于', [
-            _buildSettingsItem(context, '检查更新', '版本 1.1.0', Icons.update),
-            _buildSettingsItem(context, '开源主页', 'GitHub', Icons.code),
+            _buildSettingsItem(context, 'Unraid 地址', '192.168.1.100', Icons.lan_outlined),
+            _buildSettingsItem(context, 'Emby API 密钥', '已配置', Icons.movie_filter),
           ]),
         ],
       ),
