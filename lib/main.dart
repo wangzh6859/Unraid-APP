@@ -11,6 +11,7 @@ class UnraidApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Unraid Manager',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepOrange, 
@@ -29,8 +30,9 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('fnOS Style Unraid Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Unraid Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -50,7 +52,8 @@ class DashboardPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
-        child: const Icon(Icons.settings),
+        backgroundColor: Colors.deepOrange,
+        child: const Icon(Icons.settings, color: Colors.white),
       ),
     );
   }
@@ -58,7 +61,7 @@ class DashboardPage extends StatelessWidget {
   Widget _buildCard(String title, String subtitle, IconData icon, Color iconColor) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBinding(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: const Color(0xFF1E1E1E),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -75,7 +78,7 @@ class DashboardPage extends StatelessWidget {
           padding: const EdgeInsets.only(top: 6.0),
           child: Text(subtitle, style: const TextStyle(fontSize: 15, color: Colors.white70)),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white50),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
       ),
     );
   }
