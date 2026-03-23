@@ -116,13 +116,13 @@ class DashboardView extends StatelessWidget {
         SliverAppBar.large(
           title: Row(
             children: [
-              Icon(Icons.dns_rounded, color: Color(0xFFFF5722), size: 28),
-              SizedBox(width: 12),
+              const Icon(Icons.dns_rounded, color: Color(0xFFFF5722), size: 28),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('主服务器', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 22)),
+                  const Text('主服务器', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 22)),
                   Text(serverProvider.cpuModel, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
                 ],
               ),

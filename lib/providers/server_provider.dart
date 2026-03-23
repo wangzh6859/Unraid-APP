@@ -79,13 +79,13 @@ class ServerProvider with ChangeNotifier {
 
         // 既然 GraphQL API 老是变，直接用 SSH 抓取真实的 CPU 和内存负载！
         // CPU 占用率通过 top 计算
-        final topCpu = await _ssh.executeCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'");
+        final topCpu = await _ssh.executeCommand("top -bn1 | grep 'Cpu(s)' | awk '{print \x24""2 + \x24""4}'");
         if (topCpu.isNotEmpty) {
            cpuUsage = "${topCpu.trim()}%";
         }
 
         // 内存占用率通过 free 计算
-        final freeMem = await _ssh.executeCommand("free | grep Mem | awk '{print $3/$2 * 100.0}'");
+        final freeMem = await _ssh.executeCommand("free | grep Mem | awk '{print \x24""3/\x24""2 * 100.0}'");
         if (freeMem.isNotEmpty) {
            double memPct = double.tryParse(freeMem.trim()) ?? 0;
            memUsage = "${memPct.toStringAsFixed(1)}%";
