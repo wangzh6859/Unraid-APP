@@ -949,7 +949,6 @@ class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
     super.initState();
-    // 强制触发一次数据刷新
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ServerProvider>().fetchStats();
     });
@@ -959,6 +958,100 @@ class _DockerViewState extends State<DockerView> {
   Widget build(BuildContext context) {
     final server = context.watch<ServerProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Widget _buildBody() {
+      if (server.isLoading && server.dockerContainers.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (server.errorMsg.isNotEmpty && server.dockerContainers.isEmpty) {
+        return Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)));
+      }
+      if (server.dockerContainers.isEmpty) {
+        return const Center(child: Text('未发现运行中的 Docker 容器
+请确认 Glances 已启用 Docker 监控插件', textAlign: TextAlign.center));
+      }
+      
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: server.dockerContainers.length,
+        itemBuilder: (context, index) {
+          final container = server.dockerContainers[index];
+          final name = container['name'] ?? container['Names'] ?? '未知容器';
+          final status = container['Status'] ?? container['status'] ?? 'unknown';
+          final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
+          final mem = container['memory']?.containsKey('usage') == true 
+              ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
+              : '0.0';
+          
+          final isRunning = status.toString().toLowerCase() == 'running';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isRunning ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.2)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              leading: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.view_in_ar_rounded,
+                  color: isRunning ? Colors.green : Colors.grey,
+                ),
+              ),
+              title: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.memory, size: 14, color: Colors.blue.shade400),
+                    const SizedBox(width: 4),
+                    Text('${cpu.toStringAsFixed(1)}%'),
+                    const SizedBox(width: 16),
+                    Icon(Icons.storage, size: 14, color: Colors.orange.shade400),
+                    const SizedBox(width: 4),
+                    Text('${mem} MB'),
+                  ],
+                ),
+              ),
+              trailing: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('已发送 $value 指令 (功能接入中...)')),
+                  );
+                },
+                itemBuilder: (context) => <PopupMenuEntry<String>>[
+                  if (!isRunning)
+                    const PopupMenuItem<String>(value: 'start', child: Text('启动 (Start)')),
+                  if (isRunning)
+                    const PopupMenuItem<String>(value: 'stop', child: Text('停止 (Stop)')),
+                  if (isRunning)
+                    const PopupMenuItem<String>(value: 'restart', child: Text('重启 (Restart)')),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -970,93 +1063,7 @@ class _DockerViewState extends State<DockerView> {
           ),
         ],
       ),
-      body: server.isLoading && server.dockerContainers.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : server.errorMsg.isNotEmpty && server.dockerContainers.isEmpty
-              ? Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)))
-              : server.dockerContainers.isEmpty
-                  ? const Center(child: Text('未发现运行中的 Docker 容器
-请确认 Glances 已启用 Docker 监控插件', textAlign: TextAlign.center))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: server.dockerContainers.length,
-                      itemBuilder: (context, index) {
-                        final container = server.dockerContainers[index];
-                        final name = container['name'] ?? container['Names'] ?? '未知容器';
-                        final status = container['Status'] ?? container['status'] ?? 'unknown';
-                        final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
-                        final mem = container['memory']?.containsKey('usage') == true 
-                            ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
-                            : '0.0';
-                        
-                        final isRunning = status.toString().toLowerCase() == 'running';
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.grey.shade900 : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: isRunning ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.2)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              )
-                            ],
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.view_in_ar_rounded,
-                                color: isRunning ? Colors.green : Colors.grey,
-                              ),
-                            ),
-                            title: Text(
-                              name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.memory, size: 14, color: Colors.blue.shade400),
-                                  const SizedBox(width: 4),
-                                  Text('${cpu.toStringAsFixed(1)}%'),
-                                  const SizedBox(width: 16),
-                                  Icon(Icons.storage, size: 14, color: Colors.orange.shade400),
-                                  const SizedBox(width: 4),
-                                  Text('${mem} MB'),
-                                ],
-                              ),
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert),
-                              onSelected: (value) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('已发送 $value 指令 (功能接入中...)')),
-                                );
-                              },
-                              itemBuilder: (context) => [
-                                if (!isRunning)
-                                  const PopupMenuItem(value: 'start', child: Text('启动 (Start)')),
-                                if (isRunning)
-                                  const PopupMenuItem(value: 'stop', child: Text('停止 (Stop)')),
-                                if (isRunning)
-                                  const PopupMenuItem(value: 'restart', child: Text('重启 (Restart)')),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+      body: _buildBody(),
     );
   }
 }
