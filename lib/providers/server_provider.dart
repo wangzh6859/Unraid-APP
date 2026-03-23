@@ -1,94 +1,133 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/glances_client.dart';
-import '../utils/app_config.dart';
 
 class ServerProvider extends ChangeNotifier {
+  final GlancesClient _api = GlancesClient();
   
-  Timer? _timer;
+  bool isLoading = false;
+  String errorMsg = '';
   
-  ServerProvider() {
-    _startAutoRefresh();
+  // Dashboard stats
+  String cpuModel = '未知 CPU';
+  String uptime = '0天 0小时';
+  int cpuUsage = 0;
+  int memUsage = 0;
+  String cpuTemp = 'N/A';
+  String gpuTemp = 'N/A';
+  String gpuUsage = 'N/A';
+  
+  // Docker stats
+  List<dynamic> dockerContainers = [];
+
+  Timer? _refreshTimer;
+
+  void startAutoRefresh() {
+    fetchStats();
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _fetchStatsSilent();
+    });
+  }
+
+  void stopAutoRefresh() {
+    _refreshTimer?.cancel();
+  }
+
+  Future<void> fetchStats() async {
+    isLoading = true;
+    errorMsg = '';
+    notifyListeners();
+    await _fetchStatsSilent();
+  }
+
+  Future<void> _fetchStatsSilent() async {
+    final result = await _api.getServerStats();
+    
+    if (result != null) {
+      if (result.containsKey('error')) {
+         errorMsg = result['error'];
+      } else {
+         final data = result['data'];
+         if (data != null) {
+           _parseData(data);
+         }
+      }
+    } else {
+       errorMsg = '无法连接到 Glances 服务器';
+    }
+    
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void _parseData(Map<String, dynamic> data) {
+    if (data['quicklook'] != null && data['quicklook']['cpu_name'] != null) {
+       cpuModel = data['quicklook']['cpu_name'];
+    } else if (data['system'] != null) {
+       cpuModel = data['system']['hostname'] ?? 'Unraid Server';
+    }
+    
+    if (data['uptime'] != null) {
+      List<String> parts = data['uptime'].toString().split(':');
+      if (parts.length >= 2) {
+         uptime = '${parts[0]}小时 ${parts[1]}分钟';
+         if (data['uptime'].toString().contains('day')) {
+            uptime = data['uptime'].toString().split(',')[0] + ' ' + parts[0] + '小时';
+         }
+      } else {
+         uptime = data['uptime'].toString();
+      }
+    }
+    
+    if (data['cpu'] != null && data['cpu']['total'] != null) {
+      cpuUsage = (data['cpu']['total'] as num).toInt();
+    }
+    
+    if (data['mem'] != null && data['mem']['percent'] != null) {
+      memUsage = (data['mem']['percent'] as num).toInt();
+    }
+    
+    if (data['sensors'] != null) {
+       for (var sensor in data['sensors']) {
+         String label = sensor['label']?.toString().toLowerCase() ?? '';
+         if (label.contains('cpu') || label.contains('core') || label.contains('package')) {
+            cpuTemp = '${sensor['value']}°C';
+         }
+       }
+    }
+    
+    if (data['gpu'] != null && data['gpu'] is List && data['gpu'].isNotEmpty) {
+      var gpu = data['gpu'][0];
+      if (gpu['temperature'] != null) {
+         gpuTemp = '${gpu['temperature']}°C';
+      }
+      if (gpu['proc'] != null) {
+         gpuUsage = '${gpu['proc']}%';
+      } else if (gpu['mem'] != null) {
+         gpuUsage = '${gpu['mem']}%';
+      }
+    }
+
+    // Parse Docker Containers
+    if (data['docker'] != null && data['docker']['containers'] != null) {
+       dockerContainers = data['docker']['containers'];
+       // Sort by status: running first, then paused/exited
+       dockerContainers.sort((a, b) {
+         String statusA = a['Status'] ?? a['status'] ?? '';
+         String statusB = b['Status'] ?? b['status'] ?? '';
+         if (statusA.toLowerCase() == 'running' && statusB.toLowerCase() != 'running') return -1;
+         if (statusB.toLowerCase() == 'running' && statusA.toLowerCase() != 'running') return 1;
+         return 0;
+       });
+    } else {
+       dockerContainers = [];
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  void _startAutoRefresh() {
-    refreshData(isBackground: false);
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (AppConfig.baseDomain.isNotEmpty) {
-        refreshData(isBackground: true);
-      }
-    });
-  }
-  final GlancesClient _api = GlancesClient();
-  
-  bool isConnected = false;
-  bool isLoading = false;
-  String errorMsg = '';
-  
-  String cpuModel = 'Glances Node';
-  String cpuUsage = '0%';
-  String memUsage = '0%';
-  String gpuUsage = '核显/待机';
-  String gpuTemp = '45°C';
-
-  Future<void> refreshData({bool isBackground = false}) async {
-    if (!isBackground) isLoading = true;
-    errorMsg = '';
-    notifyListeners();
-
-    final result = await _api.getServerStats();
-    if (result != null) {
-       if (result.containsKey('error')) {
-          isConnected = false;
-          errorMsg = result['error'];
-       } else {
-          isConnected = true;
-          try {
-            final data = result['data'];
-            
-            // 尝试获取真实的 CPU 型号
-            if (data['quicklook'] != null && data['quicklook']['cpu_name'] != null) {
-               cpuModel = '${data['system']['os_name']} · ${data['quicklook']['cpu_name']}';
-            } else if (data['system'] != null) {
-               cpuModel = '${data['system']['os_name']} · ${data['system']['hostname']}';
-            }
-
-            if (data['cpu'] != null) {
-               cpuUsage = '${data['cpu']['total'].toStringAsFixed(1)}%';
-            }
-            if (data['mem'] != null) {
-               memUsage = '${data['mem']['percent'].toStringAsFixed(1)}%';
-            }
-            
-            // 尝试获取真实的 GPU 数据及温度
-            if (data['gpu'] != null && data['gpu'].isNotEmpty) {
-               final mainGpu = data['gpu'][0];
-               gpuUsage = '${mainGpu['proc'] ?? 0}%';
-               gpuTemp = '${mainGpu['temperature'] ?? 'N/A'}°C';
-            } else {
-               gpuUsage = '核显/未检测';
-               gpuTemp = '--';
-            }
-
-            // 如果 sensors 里有温度，尝试提取 CPU 温度追加到 CPU 占用率旁，或者替换
-            // 暂时不改 UI 结构，将它留存
-            
-          } catch (e) {
-            errorMsg = '数据解析异常';
-          }
-       }
-    } else {
-       isConnected = false;
-       errorMsg = '网络超时';
-    }
-
-    isLoading = false;
-    notifyListeners();
   }
 }
