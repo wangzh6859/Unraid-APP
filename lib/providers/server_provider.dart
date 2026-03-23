@@ -38,13 +38,17 @@ class ServerProvider with ChangeNotifier {
         isConnected = true;
         try {
           final resData = data['data'];
-          final info = resData['info'];
-          if (info != null && info['cpu'] != null) {
-             cpuModel = '${info['cpu']['brand']}';
-             cpuUsage = info['cpu']['cores'].toString() + '核'; // 暂时用核心数占位，等用 SSH 查
+          if (resData != null) {
+             final info = resData['info'];
+             if (info != null && info['cpu'] != null) {
+               cpuModel = '${info['cpu']['brand']}';
+               cpuUsage = "${info['cpu']['cores']}核";
+             }
+          } else if (data['errors'] != null) {
+             errorMsg = 'GraphQL: ${data['errors'][0]['message']}';
           }
         } catch (e) {
-          errorMsg = '数据解析异常';
+          errorMsg = '数据解析异常: $e';
         }
       }
     } else {

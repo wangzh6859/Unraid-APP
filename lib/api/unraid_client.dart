@@ -29,6 +29,7 @@ class UnraidClient {
     }
     _dio.options.connectTimeout = const Duration(seconds: 10);
     _dio.options.receiveTimeout = const Duration(seconds: 10);
+    _dio.options.validateStatus = (status) => true; // 不要直接抛出 400 异常
   }
 
   // 获取 CPU 等统计信息
@@ -40,7 +41,7 @@ class UnraidClient {
       final response = await _dio.post(
         '/graphql',
         data: {
-          "query": "query { info { cpu { brand cores threads } } system { state { cpuLoad, memory { free, total } } } }"
+          "query": "query { info { cpu { brand cores threads } os { uptime } } }"
         },
       );
       
