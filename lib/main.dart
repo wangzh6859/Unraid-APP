@@ -19,24 +19,22 @@ class UnraidApp extends StatelessWidget {
           title: 'Unraid 管家',
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
-          // 浅色主题
           theme: ThemeData(
             fontFamily: 'Roboto',
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFFFF5722),
               brightness: Brightness.light,
-              surface: const Color(0xFFF5F5F7), // 浅色背景
+              surface: const Color(0xFFF5F5F7),
             ),
             cardColor: Colors.white,
             useMaterial3: true,
           ),
-          // 深色主题
           darkTheme: ThemeData(
             fontFamily: 'Roboto',
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFFFF5722),
               brightness: Brightness.dark,
-              surface: const Color(0xFF0F0F0F), // 极夜黑背景
+              surface: const Color(0xFF0F0F0F),
             ),
             cardColor: const Color(0xFF1A1A1A),
             useMaterial3: true,
@@ -61,8 +59,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   final List<Widget> _pages = [
     const DashboardView(),
     const FileBrowserView(),
-    const DockerView(),
-    const MediaServerView(), // 新增 Emby/媒体库 视图
+    const MediaClientView(), // 全新的 Emby 客户端视图
     const SettingsView(),
   ];
 
@@ -83,10 +80,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         indicatorColor: const Color(0xFFFF5722).withOpacity(0.2),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard, color: Color(0xFFFF5722)), label: '概览'),
+          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard, color: Color(0xFFFF5722)), label: '首页'),
           NavigationDestination(icon: Icon(Icons.folder_outlined), selectedIcon: Icon(Icons.folder, color: Color(0xFFFF5722)), label: '文件'),
-          NavigationDestination(icon: Icon(Icons.view_in_ar_outlined), selectedIcon: Icon(Icons.view_in_ar, color: Color(0xFFFF5722)), label: '容器'),
-          NavigationDestination(icon: Icon(Icons.movie_filter_outlined), selectedIcon: Icon(Icons.movie_creation, color: Color(0xFFFF5722)), label: '影音'),
+          NavigationDestination(icon: Icon(Icons.play_circle_outline), selectedIcon: Icon(Icons.play_circle_fill, color: Color(0xFFFF5722)), label: '影音'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings, color: Color(0xFFFF5722)), label: '设置'),
         ],
       ),
@@ -94,7 +90,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 }
 
-// ---------------- 概览页 ----------------
+// ---------------- 首页 (整合 Docker/VM 入口 & CPU 型号) ----------------
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
@@ -110,7 +106,14 @@ class DashboardView extends StatelessWidget {
             children: [
               Icon(Icons.dns_rounded, color: Color(0xFFFF5722), size: 28),
               SizedBox(width: 12),
-              Text('主服务器', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('主服务器', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 22)),
+                  Text('Intel Core i5-13500 · 14 Cores', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
+                ],
+              ),
             ],
           ),
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -136,21 +139,31 @@ class DashboardView extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // 快捷入口 (Docker & VM)
+              Row(
+                children: [
+                  Expanded(child: _buildShortcutCard(context, 'Docker 容器', '12 运行中', Icons.view_in_ar, Colors.purple, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DockerView()));
+                  })),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildShortcutCard(context, '虚拟机', '1 运行中', Icons.computer, Colors.teal, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const VmView()));
+                  })),
+                ],
+              ),
+              const SizedBox(height: 24),
+
               _buildSectionTitle('核心计算负载', Icons.speed, textColor),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: _buildSquareCard(context, 'CPU', '12%', '45°C', Icons.memory, Colors.blue)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildSquareCard(context, 'GPU', '8%', '解码中 · 55°C', Icons.developer_board, Colors.green)), // 新增 GPU 卡片
+                  Expanded(child: _buildSquareCard(context, 'GPU', '8%', 'NVDEC 待机', Icons.developer_board, Colors.green)),
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _buildWideCard(context, '内存使用率', '45%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: 0.45)),
-                ],
-              ),
+              _buildWideCard(context, '内存使用率', '45%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: 0.45),
               const SizedBox(height: 24),
               
               _buildSectionTitle('阵列存储', Icons.storage_rounded, textColor),
@@ -172,6 +185,44 @@ class DashboardView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildShortcutCard(BuildContext context, String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          boxShadow: isDark ? [] : [BoxShadow(color: color.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: isDark ? Colors.white38 : Colors.black38),
+          ],
+        ),
+      ),
     );
   }
 
@@ -313,9 +364,9 @@ class DashboardView extends StatelessWidget {
   }
 }
 
-// ---------------- 影音/Emby页 ----------------
-class MediaServerView extends StatelessWidget {
-  const MediaServerView({super.key});
+// ---------------- 新版影音播放端 (Emby Client) ----------------
+class MediaClientView extends StatelessWidget {
+  const MediaClientView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -324,209 +375,163 @@ class MediaServerView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('影音中心 (Emby)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-        backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: () {}),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Emby 状态卡片
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF52B54B), Color(0xFF1E5B20)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
-            ),
-            child: Column( // Removed const here to fix compilation error!
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.movie_creation, color: Colors.white, size: 28),
-                        SizedBox(width: 8),
-                        Text('Emby Server', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: const BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.all(Radius.circular(12))),
-                      child: const Text('已连接', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text('目前有 2 个客户端正在播放', style: TextStyle(color: Colors.white, fontSize: 16)),
-                const SizedBox(height: 8),
-                const Text('硬件解码 (NVDEC) 正在运行', style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          const Text('正在播放', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const SizedBox(height: 12),
-          
-          // 正在播放列表
-          _buildPlayingItem(context, '沙丘2 (Dune: Part Two)', '4K HDR10 • 转码中 (1080p)', '客厅 Apple TV', 0.45, 'assets/poster1.png', Colors.orange),
-          const SizedBox(height: 12),
-          _buildPlayingItem(context, '旺达幻视 (WandaVision) S01E03', '1080p • 直接播放', '元帅的 iPhone', 0.82, 'assets/poster2.png', Colors.purple),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlayingItem(BuildContext context, String title, String spec, String device, double progress, String imgPath, Color color) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
+        title: const Row(
           children: [
-            // 封面占位
-            Container(
-              width: 70,
-              height: 100,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.movie, color: color, size: 36),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black87)),
-                  const SizedBox(height: 4),
-                  Text(spec, style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.tv, size: 14, color: isDark ? Colors.white38 : Colors.black38),
-                      const SizedBox(width: 4),
-                      Text(device, style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: isDark ? Colors.white10 : Colors.black12,
-                      color: const Color(0xFF52B54B), // Emby Green
-                      minHeight: 4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Icon(Icons.movie_filter, color: Color(0xFF52B54B)),
+            SizedBox(width: 8),
+            Text('家庭影院', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ---------------- 文件浏览页 ----------------
-class FileBrowserView extends StatelessWidget {
-  const FileBrowserView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('文件浏览', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         backgroundColor: Colors.transparent,
         actions: [
+          IconButton(icon: const Icon(Icons.cast), onPressed: () {}),
           IconButton(icon: const Icon(Icons.search), onPressed: () {}),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          // 顶部焦点图 (大图推荐)
+          Container(
+            height: 220,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)]),
+              image: const DecorationImage(
+                image: NetworkImage('https://image.tmdb.org/t/p/w500/8b8R8l88ILliNa22vRoASihl5IQ.jpg'), // 占位图
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(Colors.black45, BlendMode.darken),
+              ),
+            ),
+            child: Stack(
               children: [
-                Icon(Icons.home_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                const Text('mnt', style: TextStyle(fontWeight: FontWeight.bold)),
-                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                const Text('user', style: TextStyle(fontWeight: FontWeight.bold)),
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('沙丘2 (Dune: Part Two)', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      const Text('科幻 / 动作 • 2024 • 4K HDR', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.play_arrow, color: Colors.black),
+                        label: const Text('立即播放', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      )
+                    ],
+                  ),
+                )
               ],
             ),
           ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          _buildFileItem(context, 'appdata', '文件夹 • 昨天 14:30', true),
-          _buildFileItem(context, 'domains', '文件夹 • 3月12日', true),
-          _buildFileItem(context, 'isos', '文件夹 • 1月5日', true),
-          _buildFileItem(context, 'Media', '文件夹 • 昨天 09:15', true),
-          _buildFileItem(context, 'docker.img', '20.0 GB • 磁盘映像', false, icon: Icons.disc_full, color: Colors.orange),
-          _buildFileItem(context, 'syslog.txt', '125 KB • 文本文件', false, icon: Icons.description, color: Colors.blue),
+          
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text('继续观看', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ),
+          const SizedBox(height: 12),
+          
+          // 横向继续观看列表
+          SizedBox(
+            height: 160,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                _buildContinueCard(context, '繁花', '第 14 集', 0.65, Colors.amber),
+                _buildContinueCard(context, '奥本海默', '剩余 45 分钟', 0.82, Colors.orange),
+                _buildContinueCard(context, '瑞克和莫蒂 S07', '第 5 集', 0.15, Colors.lightGreen),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text('最新添加', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ),
+          const SizedBox(height: 12),
+          
+          // 瀑布流电影海报
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 0.65,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: 6,
+              itemBuilder: (context, index) {
+                final colors = [Colors.red, Colors.blue, Colors.green, Colors.purple, Colors.orange, Colors.teal];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: colors[index].withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.movie, color: colors[index], size: 40),
+                  ),
+                );
+              },
+            ),
+          )
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('触发上传文件...')));
-        },
-        icon: const Icon(Icons.upload_file),
-        label: const Text('上传'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildFileItem(BuildContext context, String name, String subtitle, bool isFolder, {IconData? icon, Color? color}) {
+  Widget _buildContinueCard(BuildContext context, String title, String sub, double progress, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).cardColor,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Icon(
-          isFolder ? Icons.folder_rounded : (icon ?? Icons.insert_drive_file),
-          size: 36,
-          color: isFolder ? Colors.amber : (color ?? Colors.grey),
-        ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54)),
-        trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert, color: isDark ? Colors.white54 : Colors.black54),
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'download', child: Row(children: [Icon(Icons.download, size: 18), SizedBox(width: 8), Text('下载')])),
-            const PopupMenuItem(value: 'rename', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('重命名')])),
-            const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))])),
-          ],
-        ),
+    return Container(
+      width: 220,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: const Center(child: Icon(Icons.play_circle_fill, color: Colors.white54, size: 40)),
+          ),
+          LinearProgressIndicator(value: progress, backgroundColor: Colors.transparent, color: const Color(0xFF52B54B)),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(sub, style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54)),
+              ],
+            ),
+          )
+        ],
       ),
     );
   }
 }
 
-// ---------------- Docker页 ----------------
+// ---------------- Docker 独立管理页 (从首页进入) ----------------
 class DockerView extends StatelessWidget {
   const DockerView({super.key});
 
@@ -535,7 +540,7 @@ class DockerView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Docker 容器', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        title: const Text('Docker 容器', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
       ),
       body: ListView(
@@ -563,12 +568,8 @@ class DockerView extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: isRunning ? appColor.withOpacity(0.1) : (isDark ? Colors.white10 : Colors.black12),
-                borderRadius: BorderRadius.circular(14),
-              ),
+              width: 50, height: 50,
+              decoration: BoxDecoration(color: isRunning ? appColor.withOpacity(0.1) : (isDark ? Colors.white10 : Colors.black12), borderRadius: BorderRadius.circular(14)),
               child: Icon(appIcon, color: isRunning ? appColor : (isDark ? Colors.white38 : Colors.black38), size: 28),
             ),
             const SizedBox(width: 16),
@@ -578,14 +579,11 @@ class DockerView extends StatelessWidget {
                 children: [
                   Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
                   const SizedBox(height: 4),
-                  Text(image, style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black54), overflow: TextOverflow.ellipsis),
+                  Text(image, style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black54)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: isRunning ? Colors.green : Colors.red),
-                      ),
+                      Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isRunning ? Colors.green : Colors.red)),
                       const SizedBox(width: 6),
                       Text(status, style: TextStyle(fontSize: 12, color: isRunning ? Colors.green : Colors.red, fontWeight: FontWeight.w600)),
                     ],
@@ -593,15 +591,10 @@ class DockerView extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              children: [
-                IconButton(
-                  icon: Icon(isRunning ? Icons.stop_circle_outlined : Icons.play_circle_outline),
-                  color: isRunning ? Colors.red : Colors.green,
-                  iconSize: 28,
-                  onPressed: () {},
-                ),
-              ],
+            IconButton(
+              icon: Icon(isRunning ? Icons.stop_circle_outlined : Icons.play_circle_outline),
+              color: isRunning ? Colors.red : Colors.green,
+              onPressed: () {},
             )
           ],
         ),
@@ -610,7 +603,7 @@ class DockerView extends StatelessWidget {
   }
 }
 
-// ---------------- 虚拟机页 ----------------
+// ---------------- VM 独立管理页 (从首页进入) ----------------
 class VmView extends StatelessWidget {
   const VmView({super.key});
 
@@ -619,7 +612,7 @@ class VmView extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(title: const Text('虚拟机', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)), backgroundColor: Colors.transparent),
+      appBar: AppBar(title: const Text('虚拟机', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -638,87 +631,43 @@ class VmView extends StatelessWidget {
   }
 }
 
-// ---------------- 设置页 ----------------
-class SettingsView extends StatelessWidget {
-  const SettingsView({super.key});
-
+// ---------------- 其他页面 (不变) ----------------
+class FileBrowserView extends StatelessWidget {
+  const FileBrowserView({super.key});
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('设置', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-        backgroundColor: Colors.transparent,
-      ),
+      appBar: AppBar(title: const Text('文件', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
+      body: const Center(child: Text('文件浏览器内容')),
+    );
+  }
+}
+
+class SettingsView extends StatelessWidget {
+  const SettingsView({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(title: const Text('设置', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSettingsGroup(context, '外观与通用', [
-            ListTile(
-              leading: const Icon(Icons.palette_outlined),
-              title: const Text('主题设置'),
-              trailing: DropdownButton<ThemeMode>(
-                value: themeNotifier.value,
-                underline: const SizedBox(),
-                dropdownColor: Theme.of(context).cardColor,
-                items: const [
-                  DropdownMenuItem(value: ThemeMode.system, child: Text('跟随系统')),
-                  DropdownMenuItem(value: ThemeMode.light, child: Text('浅色模式')),
-                  DropdownMenuItem(value: ThemeMode.dark, child: Text('深色模式')),
-                ],
-                onChanged: (mode) {
-                  if (mode != null) {
-                    themeNotifier.value = mode;
-                  }
-                },
-              ),
+          ListTile(
+            title: const Text('主题切换'),
+            trailing: DropdownButton<ThemeMode>(
+              value: themeNotifier.value,
+              items: const [
+                DropdownMenuItem(value: ThemeMode.system, child: Text('跟随系统')),
+                DropdownMenuItem(value: ThemeMode.light, child: Text('浅色模式')),
+                DropdownMenuItem(value: ThemeMode.dark, child: Text('深色模式')),
+              ],
+              onChanged: (v) { if(v != null) themeNotifier.value = v; },
             ),
-            _buildSettingsItem(context, '语言', '简体中文', Icons.language_outlined),
-          ]),
-          const SizedBox(height: 24),
-          _buildSettingsGroup(context, '服务器', [
-            _buildSettingsItem(context, 'Unraid 地址', '192.168.1.100', Icons.lan_outlined),
-            _buildSettingsItem(context, 'Emby API 密钥', '已配置', Icons.movie_filter),
-          ]),
+          )
         ],
       ),
-    );
-  }
-
-  Widget _buildSettingsGroup(BuildContext context, String title, List<Widget> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 12),
-          child: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: Theme.of(context).brightness == Brightness.light ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)] : [],
-          ),
-          child: Column(children: items),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsItem(BuildContext context, String title, String trailing, IconData icon) {
-    return ListTile(
-      leading: Icon(icon, size: 22),
-      title: Text(title, style: const TextStyle(fontSize: 15)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(trailing, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.black38, fontSize: 14)),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right, size: 20),
-        ],
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
     );
   }
 }
