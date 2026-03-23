@@ -967,8 +967,7 @@ class _DockerViewState extends State<DockerView> {
         return Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)));
       }
       if (server.dockerContainers.isEmpty) {
-        return const Center(child: Text('未发现运行中的 Docker 容器
-请确认 Glances 已启用 Docker 监控插件', textAlign: TextAlign.center));
+        return const Center(child: Text('未发现运行中的 Docker 容器\n请确认 Glances 已启用 Docker 监控插件', textAlign: TextAlign.center));
       }
       
       return ListView.builder(
