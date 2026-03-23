@@ -10,7 +10,7 @@ class VmView extends StatelessWidget {
     final serverProvider = Provider.of<ServerProvider>(context);
     
     return Scaffold(
-      appBar: AppBar(title: const Text('【全向雷达 V2.1.3】')),
+      appBar: AppBar(title: const Text('【全向雷达 V2.1.4】')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
