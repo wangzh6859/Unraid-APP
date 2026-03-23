@@ -18,7 +18,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ServerProvider()),
         ChangeNotifierProvider(create: (_) => EmbyProvider()),
       ],
-      child: const MainNavigationPage(),
+      child: const UnraidApp(),
     ),
   );
 }
@@ -47,43 +47,8 @@ class _UnraidAppState extends State<UnraidApp> {
     });
   }
 
-
-/*
-  void _showEmbyAccountDialog() {
-    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
-    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
-    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Emby 账号配置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
-            const SizedBox(height: 8),
-            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
-            const SizedBox(height: 8),
-            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          ElevatedButton(
-            onPressed: () async {
-            },
-            child: const Text('保存并重连'),
-          ),
-        ],
-      ),
-    );
-  }
-*/
-
   @override
   Widget build(BuildContext context) {
-
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (_, mode, __) {
