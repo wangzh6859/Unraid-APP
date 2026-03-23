@@ -282,7 +282,7 @@ class DashboardView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _buildWideCard(context, '内存使用率', '${serverProvider.memUsage}%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: serverProvider.memUsage / 100.0),
+              _buildWideCard(context, '内存使用率', '${serverProvider.memUsage}%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: double.tryParse(serverProvider.memUsage.replaceAll('%', '')) != null ? (double.parse(serverProvider.memUsage.replaceAll('%', '')) / 100.0) : 0.0),
               const SizedBox(height: 24),
               
               _buildSectionTitle('阵列存储', Icons.storage_rounded, textColor),
