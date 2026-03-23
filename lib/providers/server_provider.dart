@@ -20,6 +20,8 @@ class ServerProvider with ChangeNotifier {
     refreshData();
   }
 
+  String cpuModel = 'Intel Core i5-13500 · 14 Cores'; // 默认
+
   Future<void> refreshData() async {
     isLoading = true;
     errorMsg = '';
@@ -38,43 +40,21 @@ class ServerProvider with ChangeNotifier {
         isConnected = true;
         try {
           final resData = data['data'];
-          
-          // CPU 占用率解析 (尝试从 system.state.cpuLoad 获取)
-          if (resData['system'] != null && resData['system']['state'] != null) {
-            var load = resData['system']['state']['cpuLoad'];
-            if (load != null) {
-               cpuUsage = '${load.toString()}%';
-            }
-            
-            // 内存解析
-            var mem = resData['system']['state']['memory'];
-            if (mem != null) {
-               double free = (mem['free'] ?? 0) / 1024 / 1024 / 1024; // 假设返回的是 bytes
-               double total = (mem['total'] ?? 1) / 1024 / 1024 / 1024;
-               if (total > 0) {
-                 double usage = ((total - free) / total) * 100;
-                 memUsage = '${usage.toStringAsFixed(1)}%';
-               }
-            }
-          } else {
-             // 如果没拿到 system.state，降级显示核心数以防报错
-             final info = resData['info'];
-             if (info != null && info['cpu'] != null) {
-                cpuUsage = info['cpu']['cores'].toString() + ' 核';
-                memUsage = '未知';
-             }
+          final info = resData['info'];
+          if (info != null && info['cpu'] != null) {
+             cpuModel = '${info['cpu']['brand']}';
+             cpuUsage = info['cpu']['cores'].toString() + '核'; // 暂时用核心数占位，等用 SSH 查
           }
         } catch (e) {
-          errorMsg = '数据解析异常，数据结构不匹配';
+          errorMsg = '数据解析异常';
         }
       }
     } else {
       isConnected = false;
-      errorMsg = "未配置IP或连接超时";
+      errorMsg = "网络请求失败";
     }
 
-    
-    // 尝试通过 SSH 获取 GPU 数据
+    // 尝试通过 SSH 获取 GPU 和真实的 CPU/内存 数据
     try {
       final prefs = await SharedPreferences.getInstance();
       final host = prefs.getString('ssh_host') ?? '';
@@ -84,7 +64,8 @@ class ServerProvider with ChangeNotifier {
 
       if (host.isNotEmpty && user.isNotEmpty && pass.isNotEmpty) {
         await _ssh.connect(host, port, user, pass);
-        // 如果是 Nvidia 显卡，使用 nvidia-smi 提取使用率和温度
+        
+        // 抓取 GPU
         final nvidiaSmi = await _ssh.executeCommand("nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits");
         if (nvidiaSmi.isNotEmpty && !nvidiaSmi.contains("Error") && !nvidiaSmi.contains("command not found")) {
            final parts = nvidiaSmi.split(',');
@@ -93,9 +74,23 @@ class ServerProvider with ChangeNotifier {
              gpuTemp = "${parts[1].trim()}°C";
            }
         } else {
-          // 如果是 Intel 核显，通常可以使用 intel_gpu_top (但解析较复杂，暂以未知处理或使用自定义命令)
-          gpuUsage = "核显";
+           gpuUsage = "核显/待机";
         }
+
+        // 既然 GraphQL API 老是变，直接用 SSH 抓取真实的 CPU 和内存负载！
+        // CPU 占用率通过 top 计算
+        final topCpu = await _ssh.executeCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'");
+        if (topCpu.isNotEmpty) {
+           cpuUsage = "${topCpu.trim()}%";
+        }
+
+        // 内存占用率通过 free 计算
+        final freeMem = await _ssh.executeCommand("free | grep Mem | awk '{print $3/$2 * 100.0}'");
+        if (freeMem.isNotEmpty) {
+           double memPct = double.tryParse(freeMem.trim()) ?? 0;
+           memUsage = "${memPct.toStringAsFixed(1)}%";
+        }
+
         _ssh.disconnect();
       }
     } catch (e) {
@@ -103,7 +98,6 @@ class ServerProvider with ChangeNotifier {
     }
     
     isLoading = false;
-
     notifyListeners();
   }
 }
