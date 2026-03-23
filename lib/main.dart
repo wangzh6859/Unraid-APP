@@ -770,28 +770,7 @@ class _SettingsViewState extends State<SettingsView> {
           ]),
           
           const SizedBox(height: 24),
-          _buildSettingsGroup(context, 'SSH 连接配置 (用于读取GPU状态)', [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('SSH 主机 IP', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextField(controller: _sshHostController, decoration: InputDecoration(hintText: '例: 192.168.1.100', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
-                  const SizedBox(height: 16),
-                  const Text('SSH 用户名', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextField(controller: _sshUserController, decoration: InputDecoration(hintText: '默认: root', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
-                  const SizedBox(height: 16),
-                  const Text('SSH 密码', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextField(controller: _sshPassController, obscureText: true, decoration: InputDecoration(hintText: '输入您的 root 密码', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
-                ],
-              ),
-            ),
-          ]),
-          const SizedBox(height: 24),
+          
           
           SizedBox(
             width: double.infinity,
