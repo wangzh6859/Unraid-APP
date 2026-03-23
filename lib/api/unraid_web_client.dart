@@ -1,7 +1,5 @@
 import 'package:dio/dio.dart';
-
 import '../utils/app_config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class UnraidWebClient {
   final Dio _dio = Dio();
@@ -18,37 +16,29 @@ class UnraidWebClient {
     if (AppConfig.baseDomain.isEmpty) return false;
 
     try {
-      // 1. Send POST to /login
       final response = await _dio.post(
         '${AppConfig.baseDomain}/login',
         data: FormData.fromMap({
-          'username': AppConfig.username, // usually 'root'
+          'username': AppConfig.username,
           'password': AppConfig.password,
         }),
         options: Options(
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         ),
       );
 
-      // Check for set-cookie
       final cookies = response.headers['set-cookie'];
       if (cookies != null && cookies.isNotEmpty) {
-        _cookie = cookies.first.split(';').first; // e.g. PHPSESSID=xxxx
+        _cookie = cookies.first.split(';').first;
       }
 
-      // 2. Fetch /Dashboard to get CSRF token
       final dashResp = await _dio.get(
         '${AppConfig.baseDomain}/Dashboard',
-        options: Options(
-          headers: {'Cookie': _cookie},
-        ),
+        options: Options(headers: {'Cookie': _cookie}),
       );
 
       if (dashResp.statusCode == 200) {
         final html = dashResp.data.toString();
-        // Look for var csrf_token = "..."
         final RegExp regex = RegExp(r'var\s+csrf_token\s*=\s*"([^"]+)"');
         final match = regex.firstMatch(html);
         if (match != null && match.groupCount >= 1) {
@@ -58,34 +48,47 @@ class UnraidWebClient {
       }
       return false;
     } catch (e) {
-      print('Unraid WebGUI login error: $e');
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getDashboardStats() async {
+    if (_csrfToken.isEmpty || _cookie.isEmpty) {
+      bool ok = await login();
+      if (!ok) return {'error': 'Unraid 原生登录失败 (请检查密码是否为 root 密码)'};
+    }
+
+    try {
+      // Fetch hardware info from Dashboard html or update.htm
+      final response = await _dio.get(
+        '${AppConfig.baseDomain}/Dashboard',
+        options: Options(headers: {'Cookie': _cookie}),
+      );
+
+      if (response.statusCode == 200) {
+        final html = response.data.toString();
+        return {'data': html}; // We will regex parse this in provider
+      }
+      return {'error': '无法加载主界面数据: ${response.statusCode}'};
+    } catch (e) {
+      return {'error': '网络连接异常: $e'};
     }
   }
 
   Future<Map<String, dynamic>?> getVms() async {
     if (_csrfToken.isEmpty || _cookie.isEmpty) {
       bool ok = await login();
-      if (!ok) return {'error': 'Unraid 原生登录失败'};
+      if (!ok) return {'error': 'Unraid 登录失败'};
     }
-
     try {
-      // Usually VMs list can be fetched from /update.htm?api=vms or we have to parse /VMs
-      // Actually, unraid returns state in a JSON-like format or html fragment if we request the right script.
-      // For now, let's just scrape the /VMs page or /plugins/dynamix.vm.manager/include/VMMachines.php
-      // Unraid 6/7 relies heavily on `update.htm` polling.
-      final response = await _dio.post(
-        '${AppConfig.baseDomain}/update.htm',
-        data: FormData.fromMap({'csrf_token': _csrfToken, 'api': 'vms'}),
+      final response = await _dio.get(
+        '${AppConfig.baseDomain}/VMs',
         options: Options(headers: {'Cookie': _cookie}),
       );
-
       if (response.statusCode == 200) {
-         // Unfortunately update.htm might not return standard json depending on version.
-         // Let's fallback to scraping /VMs html if needed.
-         return {'raw': response.data.toString()};
+         return {'data': response.data.toString()};
       }
-      return {'error': '无法获取虚拟机状态'};
+      return {'error': '无法获取虚拟机列表'};
     } catch (e) {
       return {'error': '网络异常: $e'};
     }
