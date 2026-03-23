@@ -945,6 +945,19 @@ class DockerView extends StatefulWidget {
   State<DockerView> createState() => _DockerViewState();
 }
 
+IconData _getDockerIcon(String name) {
+    name = name.toLowerCase();
+    if (name.contains('nginx') || name.contains('proxy') || name.contains('swag')) return Icons.public;
+    if (name.contains('sql') || name.contains('db') || name.contains('redis') || name.contains('mongo') || name.contains('mariadb')) return Icons.storage;
+    if (name.contains('emby') || name.contains('jellyfin') || name.contains('plex')) return Icons.movie_creation;
+    if (name.contains('qbittorrent') || name.contains('transmission') || name.contains('aria2') || name.contains('download')) return Icons.cloud_download;
+    if (name.contains('alist') || name.contains('nextcloud') || name.contains('cloud')) return Icons.cloud;
+    if (name.contains('homeassistant') || name.contains('ha')) return Icons.home;
+    if (name.contains('openclaw') || name.contains('bot') || name.contains('ai')) return Icons.smart_toy;
+    if (name.contains('portainer')) return Icons.dashboard;
+    return _getDockerIcon(name);
+  }
+
 class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
@@ -1009,7 +1022,7 @@ class _DockerViewState extends State<DockerView> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.view_in_ar_rounded,
+                  _getDockerIcon(name),
                   color: isRunning ? Colors.green : Colors.grey,
                 ),
               ),

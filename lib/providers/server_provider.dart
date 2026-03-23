@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../api/glances_client.dart';
 
 class ServerProvider extends ChangeNotifier {
+  ServerProvider() {
+    startAutoRefresh();
+  }
   final GlancesClient _api = GlancesClient();
   
   bool isLoading = false;
@@ -91,11 +94,18 @@ class ServerProvider extends ChangeNotifier {
     }
     
     if (data['sensors'] != null) {
+       bool foundTemp = false;
        for (var sensor in data['sensors']) {
          String label = sensor['label']?.toString().toLowerCase() ?? '';
-         if (label.contains('cpu') || label.contains('core') || label.contains('package')) {
+         if (label.contains('cpu') || label.contains('core') || label.contains('package') || label.contains('k10temp') || label.contains('temp1')) {
             cpuTemp = '${sensor['value']}°C';
+            foundTemp = true;
+            break;
          }
+       }
+       // Fallback for some boards where CPU temp is just the first sensor if unnamed
+       if (!foundTemp && data['sensors'].isNotEmpty) {
+           cpuTemp = '${data['sensors'][0]['value']}°C';
        }
     }
     
