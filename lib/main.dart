@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 全局主题状态管理器
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
