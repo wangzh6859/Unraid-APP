@@ -1030,9 +1030,6 @@ class _DockerViewState extends State<DockerView> {
           
           final String containerId = container['Id'] ?? container['id'] ?? '';
           final status = container['State'] ?? container['Status'] ?? container['status'] ?? 'unknown';
-          final statusStr = status.toString().toLowerCase();
-          final isRunning = statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up');
-          
           // Portainer list doesn't return live CPU/Mem, so we display Image name or State if cpu/mem is missing
           final hasCpu = container['cpu'] != null;
           final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
