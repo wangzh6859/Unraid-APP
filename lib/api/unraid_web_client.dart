@@ -93,13 +93,17 @@ class UnraidWebClient {
     }
     try {
       final response = await _dio.post(
-        '${AppConfig.baseDomain}/webGui/scripts/vmmanager',
-        options: Options(headers: {'Cookie': _cookie}),
+        '${AppConfig.baseDomain}/update.htm',
+        data: {'csrf_token': _csrfToken, 'api': 'domain', 'action': 'get_content'},
+        options: Options(
+          headers: {'Cookie': _cookie},
+          contentType: Headers.formUrlEncodedContentType,
+        ),
       );
       if (response.statusCode == 200) {
          return {'data': response.data.toString()};
       }
-      return {'error': '无法获取虚拟机列表'};
+      return {'error': '无法获取虚拟机列表: HTTP ${response.statusCode} - ${response.statusMessage}'};
     } catch (e) {
       return {'error': '网络异常: $e'};
     }
