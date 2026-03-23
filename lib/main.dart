@@ -92,7 +92,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   final List<Widget> _pages = [
     const DashboardView(),
-    const FileBrowserView(),
+    const VmView(),
     const MediaClientView(), // 全新的 Emby 客户端视图
     const SettingsView(),
   ];
@@ -150,7 +150,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard, color: Color(0xFFFF5722)), label: '首页'),
-          NavigationDestination(icon: Icon(Icons.folder_outlined), selectedIcon: Icon(Icons.folder, color: Color(0xFFFF5722)), label: '文件'),
+          NavigationDestination(icon: Icon(Icons.computer_outlined), selectedIcon: Icon(Icons.computer, color: Color(0xFFFF5722)), label: '虚拟机'),
           NavigationDestination(icon: Icon(Icons.play_circle_outline), selectedIcon: Icon(Icons.play_circle_fill, color: Color(0xFFFF5722)), label: '影音'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings, color: Color(0xFFFF5722)), label: '设置'),
         ],
