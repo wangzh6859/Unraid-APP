@@ -47,8 +47,44 @@ class _UnraidAppState extends State<UnraidApp> {
     });
   }
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (_, mode, __) {
@@ -71,7 +107,7 @@ class _UnraidAppState extends State<UnraidApp> {
           ),
           home: !_isReady 
               ? const Scaffold(body: Center(child: CircularProgressIndicator())) 
-              : (_hasLogin ? const MainScreen() : const LoginScreen()),
+              : (_hasLogin ? const UnraidApp() : const LoginScreen()),
         );
       },
     );
@@ -95,8 +131,44 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     const SettingsView(),
   ];
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
@@ -127,8 +199,44 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final serverProvider = context.watch<ServerProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white70 : Colors.black87;
@@ -414,8 +522,44 @@ class DashboardView extends StatelessWidget {
 class MediaClientView extends StatelessWidget {
   const MediaClientView({super.key});
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
@@ -581,8 +725,44 @@ class MediaClientView extends StatelessWidget {
 class DockerView extends StatelessWidget {
   const DockerView({super.key});
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -653,8 +833,44 @@ class DockerView extends StatelessWidget {
 class VmView extends StatelessWidget {
   const VmView({super.key});
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -680,8 +896,44 @@ class VmView extends StatelessWidget {
 // ---------------- 其他页面 (不变) ----------------
 class FileBrowserView extends StatelessWidget {
   const FileBrowserView({super.key});
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: const Text('文件', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
@@ -732,8 +984,44 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+
+  void _showEmbyAccountDialog() {
+    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
+    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
+    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emby 账号配置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
+            const SizedBox(height: 8),
+            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
+            const SizedBox(height: 8),
+            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
+              Navigator.pop(ctx);
+              context.read<EmbyProvider>().fetchMedia();
+            },
+            child: const Text('保存并重连'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,

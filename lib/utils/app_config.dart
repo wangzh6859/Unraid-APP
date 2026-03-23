@@ -4,6 +4,11 @@ class AppConfig {
   static String baseDomain = '';
   static String username = '';
   static String password = '';
+  
+  static String embyCustomUrl = '';
+  static String embyCustomUser = '';
+  static String embyCustomPass = '';
+  
   static String embyToken = '';
   static String embyUserId = '';
 
@@ -12,6 +17,11 @@ class AppConfig {
     baseDomain = prefs.getString('base_domain') ?? '';
     username = prefs.getString('username') ?? '';
     password = prefs.getString('password') ?? '';
+    
+    embyCustomUrl = prefs.getString('emby_custom_url') ?? '';
+    embyCustomUser = prefs.getString('emby_custom_user') ?? '';
+    embyCustomPass = prefs.getString('emby_custom_pass') ?? '';
+    
     embyToken = prefs.getString('emby_token') ?? '';
     embyUserId = prefs.getString('emby_user_id') ?? '';
   }
@@ -26,12 +36,28 @@ class AppConfig {
     await prefs.setString('base_domain', url);
     await prefs.setString('username', user);
     await prefs.setString('password', pass);
-    await prefs.remove('emby_token');
-    await prefs.remove('emby_user_id');
     
     baseDomain = url;
     username = user;
     password = pass;
+  }
+  
+  static Future<void> saveEmbyAccount(String url, String user, String pass) async {
+    final prefs = await SharedPreferences.getInstance();
+    String cUrl = url.trim();
+    if (cUrl.isNotEmpty && !cUrl.startsWith('http')) {
+      cUrl = 'https://' + cUrl;
+    }
+    
+    await prefs.setString('emby_custom_url', cUrl);
+    await prefs.setString('emby_custom_user', user);
+    await prefs.setString('emby_custom_pass', pass);
+    await prefs.remove('emby_token'); // reset token on account change
+    await prefs.remove('emby_user_id');
+    
+    embyCustomUrl = cUrl;
+    embyCustomUser = user;
+    embyCustomPass = pass;
     embyToken = '';
     embyUserId = '';
   }
@@ -55,6 +81,7 @@ class AppConfig {
   }
 
   static String get embyUrl {
+    if (embyCustomUrl.isNotEmpty) return embyCustomUrl;
     if (baseDomain.isEmpty) return '';
     try {
       final uri = Uri.parse(baseDomain);
@@ -62,5 +89,13 @@ class AppConfig {
     } catch (_) {
       return '';
     }
+  }
+  
+  static String get activeEmbyUser {
+    return embyCustomUser.isNotEmpty ? embyCustomUser : username;
+  }
+  
+  static String get activeEmbyPass {
+    return embyCustomPass.isNotEmpty ? embyCustomPass : password;
   }
 }

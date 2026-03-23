@@ -14,8 +14,8 @@ class EmbyClient {
       final response = await _dio.post(
         url,
         data: {
-          "Username": AppConfig.username,
-          "Pw": AppConfig.password
+          "Username": AppConfig.activeEmbyUser,
+          "Pw": AppConfig.activeEmbyPass
         },
         options: Options(
           headers: {
