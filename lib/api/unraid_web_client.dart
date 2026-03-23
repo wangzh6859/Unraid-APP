@@ -49,7 +49,7 @@ class UnraidWebClient {
       if (dashResp.statusCode == 200) {
         final html = dashResp.data.toString();
         // Look for var csrf_token = "..."
-        final RegExp regex = RegExp(r'var\s+csrf_token\s*=\s*["\']([^"\']+)["\']');
+        final RegExp regex = RegExp(r'var\s+csrf_token\s*=\s*"([^"]+)"');
         final match = regex.firstMatch(html);
         if (match != null && match.groupCount >= 1) {
           _csrfToken = match.group(1)!;
