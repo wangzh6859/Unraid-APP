@@ -6,10 +6,14 @@ class UnraidWebClient {
   String _csrfToken = '';
   String _cookie = '';
 
+  
   UnraidWebClient() {
     _dio.options.validateStatus = (status) => true;
     _dio.options.followRedirects = false; // Important for login capture
+    _dio.options.connectTimeout = const Duration(seconds: 5);
+    _dio.options.receiveTimeout = const Duration(seconds: 5);
   }
+
 
   Future<bool> login() async {
     await AppConfig.load();
@@ -44,9 +48,12 @@ class UnraidWebClient {
         if (match != null && match.groupCount >= 1) {
           _csrfToken = match.group(1)!;
           return true;
+        } else {
+           throw Exception("未能在 Dashboard 找到 csrf_token");
         }
+      } else {
+         throw Exception("Dashboard 响应码: ${dashResp.statusCode}");
       }
-      return false;
     } catch (e) {
       return false;
     }
