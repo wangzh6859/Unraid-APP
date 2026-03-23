@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSaving = true);
     await AppConfig.save(_urlCtrl.text, _userCtrl.text, _passCtrl.text);
     if (mounted) {
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UnraidApp()));
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainNavigationPage()));
     }
   }
 

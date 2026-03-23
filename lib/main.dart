@@ -18,7 +18,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ServerProvider()),
         ChangeNotifierProvider(create: (_) => EmbyProvider()),
       ],
-      child: const UnraidApp(),
+      child: const MainNavigationPage(),
     ),
   );
 }
@@ -107,7 +107,7 @@ class _UnraidAppState extends State<UnraidApp> {
           ),
           home: !_isReady 
               ? const Scaffold(body: Center(child: CircularProgressIndicator())) 
-              : (_hasLogin ? const UnraidApp() : const LoginScreen()),
+              : (_hasLogin ? const MainNavigationPage() : const LoginScreen()),
         );
       },
     );
