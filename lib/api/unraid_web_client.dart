@@ -92,8 +92,8 @@ class UnraidWebClient {
       if (!ok) return {'error': 'Unraid 登录失败'};
     }
     try {
-      final response = await _dio.get(
-        '${AppConfig.baseDomain}/VMs',
+      final response = await _dio.post(
+        '${AppConfig.baseDomain}/webGui/scripts/vmmanager',
         options: Options(headers: {'Cookie': _cookie}),
       );
       if (response.statusCode == 200) {
