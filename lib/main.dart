@@ -991,7 +991,7 @@ class _DockerViewState extends State<DockerView> {
     );
   }
 
-  String _sortMode = 'status'; // default sort by status
+  String _sortMode = 'name'; // default sort by name
   @override
   void initState() {
     super.initState();
@@ -1020,9 +1020,15 @@ class _DockerViewState extends State<DockerView> {
       
       displayList.sort((a, b) {
         if (_sortMode == 'name') {
-           String nameA = a['name'] ?? a['Names'] ?? '';
-           String nameB = b['name'] ?? b['Names'] ?? '';
-           return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+           String getName(dynamic c) {
+             if (c['Names'] != null && c['Names'] is List && c['Names'].isNotEmpty) {
+               return c['Names'][0].toString().replaceAll('/', '');
+             }
+             if (c['name'] != null) return c['name'].toString();
+             if (c['Names'] != null) return c['Names'].toString();
+             return '';
+           }
+           return getName(a).toLowerCase().compareTo(getName(b).toLowerCase());
         } else if (_sortMode == 'cpu') {
            double cpuA = a['cpu']?.containsKey('total') == true ? (a['cpu']['total'] as num).toDouble() : 0.0;
            double cpuB = b['cpu']?.containsKey('total') == true ? (b['cpu']['total'] as num).toDouble() : 0.0;
