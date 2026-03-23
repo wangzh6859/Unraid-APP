@@ -39,14 +39,19 @@ class UnraidClient {
       await init();
       if (baseUrl == null || baseUrl!.isEmpty) return null;
 
-      final response = await _dio.get('/api/system');
+      // Unraid API 插件通常使用的是 GraphQL
+      final response = await _dio.post(
+        '/graphql',
+        data: {
+          "query": "query { system { state { cpuLoad } } }"
+        },
+      );
       
-      // 容错处理: 有时服务器没返回 application/json，Dio 会把它当 String 处理
       if (response.data is String) {
         try {
           return jsonDecode(response.data) as Map<String, dynamic>;
         } catch (_) {
-          return {'error': '收到非 JSON 数据: ${response.data.toString().substring(0, 30)}...'};
+          return {'error': '收到非JSON数据 (可能端口填错了，连到了别的网页): ${response.data.toString().substring(0, 30)}...'};
         }
       }
       
@@ -57,10 +62,11 @@ class UnraidClient {
       return {'error': '未知的数据格式'};
       
     } on DioException catch (e) {
-      print('HTTP Request failed: ${e.message}');
+      if (e.response?.statusCode == 404) {
+         return {'error': '404 未找到接口: 请确认端口是否为19009'};
+      }
       return {'error': e.message ?? e.toString()};
     } catch (e) {
-      print('Unknown Error: $e');
       return {'error': e.toString()};
     }
   }
