@@ -5,6 +5,7 @@ import 'providers/emby_provider.dart';
 
 import 'utils/app_config.dart';
 import 'screens/login_screen.dart';
+import 'screens/media_detail_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -551,6 +552,37 @@ class _MediaClientViewState extends State<MediaClientView> {
             ],
             backgroundColor: Colors.transparent,
           ),
+          
+          // Categories Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: embyProvider.categories.map((cat) {
+                    final isSelected = embyProvider.currentCategory == cat['value'];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: ChoiceChip(
+                        label: Text(cat['name']!, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) {
+                            embyProvider.fetchMedia(category: cat['value']);
+                          }
+                        },
+                        selectedColor: const Color(0xFFFF5722),
+                        labelStyle: TextStyle(color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+
           if (embyProvider.isLoading)
             const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
           else if (embyProvider.errorMsg.isNotEmpty)
@@ -569,7 +601,7 @@ class _MediaClientViewState extends State<MediaClientView> {
           else if (embyProvider.latestItems.isEmpty)
             const SliverFillRemaining(
               child: Center(
-                child: Text('没有最近添加的内容，或者未配置Emby', style: TextStyle(color: Colors.grey)),
+                child: Text('该分类下没有内容，或未配置Emby', style: TextStyle(color: Colors.grey)),
               ),
             )
           else
@@ -586,48 +618,53 @@ class _MediaClientViewState extends State<MediaClientView> {
                   (context, index) {
                     final item = embyProvider.latestItems[index];
                     final imageUrl = embyProvider.getImageUrl(item['Id']);
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: isDark ? Colors.white10 : Colors.grey.shade100,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (imageUrl.isNotEmpty)
-                            Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
-                            )
-                          else
-                            const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  colors: [Colors.black87, Colors.transparent],
+                    return GestureDetector(
+                      onTap: () {
+                         Navigator.push(context, MaterialPageRoute(builder: (_) => MediaDetailScreen(item: item)));
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: isDark ? Colors.white10 : Colors.grey.shade100,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (imageUrl.isNotEmpty)
+                              Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                              )
+                            else
+                              const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [Colors.black87, Colors.transparent],
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Text(
+                                  item['Name'] ?? '未知内容',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              padding: const EdgeInsets.all(12),
-                              child: Text(
-                                item['Name'] ?? '未知内容',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -642,176 +679,6 @@ class _MediaClientViewState extends State<MediaClientView> {
 }
 
 
-class DockerView extends StatelessWidget {
-  const DockerView({super.key});
-
-
-/*
-  void _showEmbyAccountDialog() {
-    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
-    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
-    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Emby 账号配置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
-            const SizedBox(height: 8),
-            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
-            const SizedBox(height: 8),
-            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          ElevatedButton(
-            onPressed: () async {
-            },
-            child: const Text('保存并重连'),
-          ),
-        ],
-      ),
-    );
-  }
-*/
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Docker 容器', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildDockerItem(context, 'emby', 'emby/embyserver', '运行中', true, Icons.play_circle_fill, Colors.green),
-          _buildDockerItem(context, 'Nextcloud', 'linuxserver/nextcloud', '运行中', true, Icons.cloud_circle, Colors.blue),
-          _buildDockerItem(context, 'qBittorrent', 'linuxserver/qbittorrent', '运行中', true, Icons.downloading, Colors.blueAccent),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDockerItem(BuildContext context, String name, String image, String status, bool isRunning, IconData appIcon, Color appColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              width: 50, height: 50,
-              decoration: BoxDecoration(color: isRunning ? appColor.withOpacity(0.1) : (isDark ? Colors.white10 : Colors.black12), borderRadius: BorderRadius.circular(14)),
-              child: Icon(appIcon, color: isRunning ? appColor : (isDark ? Colors.white38 : Colors.black38), size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
-                  const SizedBox(height: 4),
-                  Text(image, style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black54)),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isRunning ? Colors.green : Colors.red)),
-                      const SizedBox(width: 6),
-                      Text(status, style: TextStyle(fontSize: 12, color: isRunning ? Colors.green : Colors.red, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: Icon(isRunning ? Icons.stop_circle_outlined : Icons.play_circle_outline),
-              color: isRunning ? Colors.red : Colors.green,
-              onPressed: () {},
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------- VM 独立管理页 (从首页进入) ----------------
-class VmView extends StatelessWidget {
-  const VmView({super.key});
-
-
-/*
-  void _showEmbyAccountDialog() {
-    final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
-    final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
-    final passCtrl = TextEditingController(text: AppConfig.activeEmbyPass);
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Emby 账号配置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Emby 地址 (含端口)')),
-            const SizedBox(height: 8),
-            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名')),
-            const SizedBox(height: 8),
-            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          ElevatedButton(
-            onPressed: () async {
-            },
-            child: const Text('保存并重连'),
-          ),
-        ],
-      ),
-    );
-  }
-*/
-
-  @override
-  Widget build(BuildContext context) {
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(title: const Text('虚拟机', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: isDark ? Colors.white10 : Colors.black12),
-              child: Icon(Icons.desktop_windows_outlined, size: 80, color: isDark ? Colors.white24 : Colors.black26),
-            ),
-            const SizedBox(height: 24),
-            Text('暂无运行中的虚拟机', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 16, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------- 其他页面 (不变) ----------------
 class FileBrowserView extends StatelessWidget {
   const FileBrowserView({super.key});
 
