@@ -6,20 +6,30 @@ class UnraidClient {
   String? baseUrl;
   String? apiKey;
   
+  
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    baseUrl = prefs.getString('unraid_ip');
+    String? rawUrl = prefs.getString('unraid_ip');
     apiKey = prefs.getString('unraid_api_key');
     
-    if (baseUrl != null && baseUrl!.isNotEmpty) {
+    if (rawUrl != null && rawUrl.isNotEmpty) {
+      // 容错处理: 如果用户输入了结尾多余的字符清理掉，确保是合法的 baseUrl
+      rawUrl = rawUrl.trim();
+      if (!rawUrl.startsWith('http')) {
+        rawUrl = 'http://' + rawUrl;
+      }
+      if (rawUrl.endsWith('/')) {
+        rawUrl = rawUrl.substring(0, rawUrl.length - 1);
+      }
+      baseUrl = rawUrl;
       _dio.options.baseUrl = baseUrl!;
     }
     
     if (apiKey != null && apiKey!.isNotEmpty) {
-      _dio.options.headers['x-api-key'] = apiKey; // Depending on API version, might be Authorization: Bearer
+      _dio.options.headers['x-api-key'] = apiKey;
     }
-    _dio.options.connectTimeout = const Duration(seconds: 5);
-    _dio.options.receiveTimeout = const Duration(seconds: 5);
+    _dio.options.connectTimeout = const Duration(seconds: 10);
+    _dio.options.receiveTimeout = const Duration(seconds: 10);
   }
 
   // 获取 CPU 等统计信息
