@@ -20,6 +20,7 @@ class ServerProvider extends ChangeNotifier {
   
   // Docker stats
   List<dynamic> dockerContainers = [];
+  String rawDockerResponse = '';
 
   Timer? _refreshTimer;
 
@@ -110,19 +111,24 @@ class ServerProvider extends ChangeNotifier {
       }
     }
 
-    // Parse Docker Containers
-    if (data['docker'] != null && data['docker']['containers'] != null) {
-       dockerContainers = data['docker']['containers'];
-       // Sort by status: running first, then paused/exited
-       dockerContainers.sort((a, b) {
-         String statusA = a['Status'] ?? a['status'] ?? '';
-         String statusB = b['Status'] ?? b['status'] ?? '';
-         if (statusA.toLowerCase() == 'running' && statusB.toLowerCase() != 'running') return -1;
-         if (statusB.toLowerCase() == 'running' && statusA.toLowerCase() != 'running') return 1;
-         return 0;
-       });
+        // Parse Docker Containers
+    if (data['docker'] != null) {
+       rawDockerResponse = data['docker'].toString();
+       if (data['docker']['containers'] != null) {
+         dockerContainers = data['docker']['containers'];
+         dockerContainers.sort((a, b) {
+           String statusA = a['Status'] ?? a['status'] ?? '';
+           String statusB = b['Status'] ?? b['status'] ?? '';
+           if (statusA.toLowerCase() == 'running' && statusB.toLowerCase() != 'running') return -1;
+           if (statusB.toLowerCase() == 'running' && statusA.toLowerCase() != 'running') return 1;
+           return 0;
+         });
+       } else if (data['docker'] is List) {
+         dockerContainers = data['docker'];
+       }
     } else {
        dockerContainers = [];
+       rawDockerResponse = '未在 Glances API 响应中找到 docker 节点。请确保您已在宿主机开启 Docker，且 Glances 已安装 Docker 监控依赖 (如 pip install docker)。';
     }
   }
 
