@@ -57,17 +57,17 @@ class UnraidWebClient {
       bool ok = await login();
       if (!ok) return {'error': 'Unraid 原生登录失败 (请检查密码是否为 root 密码)'};
     }
-
+    
+    // We can try to hit /update.htm with api=sys to get json or raw state
     try {
-      // Fetch hardware info from Dashboard html or update.htm
-      final response = await _dio.get(
-        '${AppConfig.baseDomain}/Dashboard',
+      final response = await _dio.post(
+        '${AppConfig.baseDomain}/update.htm',
+        data: FormData.fromMap({'csrf_token': _csrfToken, 'api': 'sys'}),
         options: Options(headers: {'Cookie': _cookie}),
       );
 
       if (response.statusCode == 200) {
-        final html = response.data.toString();
-        return {'data': html}; // We will regex parse this in provider
+        return {'data': response.data.toString()};
       }
       return {'error': '无法加载主界面数据: ${response.statusCode}'};
     } catch (e) {
@@ -81,8 +81,9 @@ class UnraidWebClient {
       if (!ok) return {'error': 'Unraid 登录失败'};
     }
     try {
-      final response = await _dio.get(
-        '${AppConfig.baseDomain}/VMs',
+      final response = await _dio.post(
+        '${AppConfig.baseDomain}/update.htm',
+        data: FormData.fromMap({'csrf_token': _csrfToken, 'api': 'vms'}),
         options: Options(headers: {'Cookie': _cookie}),
       );
       if (response.statusCode == 200) {

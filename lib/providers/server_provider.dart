@@ -62,7 +62,7 @@ class ServerProvider extends ChangeNotifier {
     if (vmResult != null && vmResult.containsKey('error')) {
        rawVmResponse = vmResult['error'];
     } else if (vmResult != null && vmResult.containsKey('data')) {
-       rawVmResponse = '原生页面抓取成功，正则解析模块开发中...';
+       rawVmResponse = vmResult['data'].toString();
     }
 
     // 3. Keep Portainer for Docker for now (since user didn't ask to remove portainer, just glances. Wait, user said "把docker容器数据来源也改成unraid底层". Ok, I will add native docker parsing later, but for this commit let's just make it connect!)
