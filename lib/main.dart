@@ -639,10 +639,10 @@ class _MediaClientViewState extends State<MediaClientView> {
                               Image.network(
                                 imageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                                errorBuilder: (_, __, ___) => Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
                               )
                             else
-                              const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                              Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
                             Positioned(
                               bottom: 0,
                               left: 0,
@@ -722,7 +722,7 @@ class FileBrowserView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: const Text('文件', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.transparent),
-      body: const Center(child: Text('文件浏览器内容')),
+      body: Center(child: Text('文件浏览器内容')),
     );
   }
 }
@@ -1008,7 +1008,7 @@ class _DockerViewState extends State<DockerView> {
 
     Widget _buildBody() {
       if (server.isLoading && server.dockerContainers.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       if (server.errorMsg.isNotEmpty && server.dockerContainers.isEmpty) {
         return Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)));
@@ -1193,13 +1193,4 @@ class _DockerViewState extends State<DockerView> {
   }
 }
 
-class VmView extends StatelessWidget {
-  const VmView({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('虚拟机')),
-      body: const Center(child: Text('虚拟机管理功能开发中...')),
-    );
-  }
-}
+
