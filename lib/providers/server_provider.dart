@@ -4,7 +4,7 @@ import '../api/glances_client.dart';
 import '../utils/app_config.dart';
 
 class ServerProvider extends ChangeNotifier {
-  final GlancesClient _api = GlancesClient();
+  
   Timer? _timer;
   
   ServerProvider() {
