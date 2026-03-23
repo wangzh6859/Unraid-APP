@@ -22,6 +22,8 @@ class ServerProvider extends ChangeNotifier {
   String totalMem = '0 GB';
   String cpuTemp = 'N/A';
   String uptime = '未知';
+  String gpuUsage = 'N/A';
+  String gpuTemp = 'N/A';
   
   // Lists
   List<dynamic> dockerContainers = [];
