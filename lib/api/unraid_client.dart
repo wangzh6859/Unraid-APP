@@ -39,11 +39,11 @@ class UnraidClient {
       await init();
       if (baseUrl == null || baseUrl!.isEmpty) return null;
 
-      // Unraid API 插件通常使用的是 GraphQL
+      // Unraid 官方 GraphQL 接口查询系统信息
       final response = await _dio.post(
         '/graphql',
         data: {
-          "query": "query { system { state { cpuLoad } } }"
+          "query": "query { info { os { uptime } cpu { brand cores threads } } }"
         },
       );
       
@@ -51,7 +51,12 @@ class UnraidClient {
         try {
           return jsonDecode(response.data) as Map<String, dynamic>;
         } catch (_) {
-          return {'error': '收到非JSON数据 (可能端口填错了，连到了别的网页): ${response.data.toString().substring(0, 30)}...'};
+          // 如果返回了纯 HTML 页面，提示端口不对
+          String preview = response.data.toString().replaceAll('
+', ' ').trim();
+          if (preview.length > 50) preview = preview.substring(0, 50) + '...';
+          return {'error': '收到网页而非接口数据: 可能是填错了端口（如果是v7.2+直接填控制台地址，如果是旧版填插件端口）。
+返回内容: $preview'};
         }
       }
       
@@ -63,7 +68,7 @@ class UnraidClient {
       
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-         return {'error': '404 未找到接口: 请确认端口是否为19009'};
+         return {'error': '404 未找到接口: 请确认地址后是否需要加端口号，或者是否在设置中开启了 API。'};
       }
       return {'error': e.message ?? e.toString()};
     } catch (e) {
