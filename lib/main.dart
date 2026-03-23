@@ -345,13 +345,13 @@ class MediaServerView extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
             ),
-            child: const Column(
+            child: Column( // Removed const here to fix compilation error!
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    const Row(
                       children: [
                         Icon(Icons.movie_creation, color: Colors.white, size: 28),
                         SizedBox(width: 8),
@@ -359,16 +359,16 @@ class MediaServerView extends StatelessWidget {
                       ],
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.all(Radius.circular(12))),
-                      child: Text('已连接', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: const BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.all(Radius.circular(12))),
+                      child: const Text('已连接', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),
-                SizedBox(height: 20),
-                Text('目前有 2 个客户端正在播放', style: TextStyle(color: Colors.white, fontSize: 16)),
-                SizedBox(height: 8),
-                Text('硬件解码 (NVDEC) 正在运行', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 20),
+                const Text('目前有 2 个客户端正在播放', style: TextStyle(color: Colors.white, fontSize: 16)),
+                const SizedBox(height: 8),
+                const Text('硬件解码 (NVDEC) 正在运行', style: TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
