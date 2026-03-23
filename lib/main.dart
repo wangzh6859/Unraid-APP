@@ -982,7 +982,8 @@ class _DockerViewState extends State<DockerView> {
               ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
               : '0.0';
           
-          final isRunning = status.toString().toLowerCase() == 'running';
+          final statusStr = status.toString().toLowerCase();
+          final isRunning = statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up');
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),

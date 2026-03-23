@@ -111,9 +111,24 @@ class ServerProvider extends ChangeNotifier {
       }
     }
 
-        // Parse Docker Containers
-    if (data['docker'] != null) {
-       rawDockerResponse = data['docker'].toString();
+            // Parse Docker Containers
+    if (data['containers'] != null) {
+       rawDockerResponse = 'Found containers array';
+       if (data['containers'] is List) {
+         dockerContainers = data['containers'];
+         dockerContainers.sort((a, b) {
+           String statusA = a['status']?.toString().toLowerCase() ?? '';
+           String statusB = b['status']?.toString().toLowerCase() ?? '';
+           // Usually running, healthy, up, etc.
+           bool isRunningA = statusA.contains('running') || statusA.contains('healthy') || statusA.contains('up');
+           bool isRunningB = statusB.contains('running') || statusB.contains('healthy') || statusB.contains('up');
+           if (isRunningA && !isRunningB) return -1;
+           if (isRunningB && !isRunningA) return 1;
+           return 0;
+         });
+       }
+    } else if (data['docker'] != null) {
+       rawDockerResponse = 'Found docker object';
        if (data['docker']['containers'] != null) {
          dockerContainers = data['docker']['containers'];
          dockerContainers.sort((a, b) {
@@ -128,7 +143,7 @@ class ServerProvider extends ChangeNotifier {
        }
     } else {
        dockerContainers = [];
-       rawDockerResponse = '未在 Glances API 响应中找到 docker 节点。请确保您已在宿主机开启 Docker，且 Glances 已安装 Docker 监控依赖 (如 pip install docker)。';
+       rawDockerResponse = '未在响应中找到 containers 节点。您可能需要开启 Glances 容器插件。';
     }
   }
 
