@@ -40,7 +40,7 @@ class UnraidClient {
       final response = await _dio.post(
         '/graphql',
         data: {
-          "query": "query { info { cpu { brand cores threads } } system { state { cpuLoad, memory { free, total } } } }" cpu { brand cores threads } } }"
+          "query": "query { info { cpu { brand cores threads } } system { state { cpuLoad, memory { free, total } } } }"
         },
       );
       
