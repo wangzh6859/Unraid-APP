@@ -48,6 +48,7 @@ class _UnraidAppState extends State<UnraidApp> {
   }
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -71,9 +72,6 @@ class _UnraidAppState extends State<UnraidApp> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -81,6 +79,7 @@ class _UnraidAppState extends State<UnraidApp> {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +131,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   ];
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -155,9 +155,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -165,6 +162,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +198,7 @@ class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -223,9 +222,6 @@ class DashboardView extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -233,6 +229,7 @@ class DashboardView extends StatelessWidget {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -519,9 +516,20 @@ class DashboardView extends StatelessWidget {
 }
 
 // ---------------- 新版影音播放端 (Emby Client) ----------------
-class MediaClientView extends StatelessWidget {
+class MediaClientView extends StatefulWidget {
   const MediaClientView({super.key});
+  @override
+  State<MediaClientView> createState() => _MediaClientViewState();
+}
 
+class _MediaClientViewState extends State<MediaClientView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EmbyProvider>().fetchMedia();
+    });
+  }
 
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
@@ -559,173 +567,121 @@ class MediaClientView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
+    final embyProvider = context.watch<EmbyProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.movie_filter, color: Color(0xFF52B54B)),
-            SizedBox(width: 8),
-            Text('家庭影院', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(icon: const Icon(Icons.cast), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          // 顶部焦点图 (大图推荐)
-          Container(
-            height: 220,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)]),
-              image: const DecorationImage(
-                image: NetworkImage('https://image.tmdb.org/t/p/w500/8b8R8l88ILliNa22vRoASihl5IQ.jpg'), // 占位图
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(Colors.black45, BlendMode.darken),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            floating: true,
+            title: const Text('影音中心', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+            actions: [
+              IconButton(icon: const Icon(Icons.manage_accounts), onPressed: _showEmbyAccountDialog),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () => embyProvider.fetchMedia(),
+              )
+            ],
+            backgroundColor: Colors.transparent,
+          ),
+          if (embyProvider.isLoading)
+            const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+          else if (embyProvider.errorMsg.isNotEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 60, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text(embyProvider.errorMsg, style: const TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            )
+          else if (embyProvider.latestItems.isEmpty)
+            const SliverFillRemaining(
+              child: Center(
+                child: Text('没有最近添加的内容，或者未配置Emby', style: TextStyle(color: Colors.grey)),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.68,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final item = embyProvider.latestItems[index];
+                    final imageUrl = embyProvider.getImageUrl(item['Id']);
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: isDark ? Colors.white10 : Colors.grey.shade100,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (imageUrl.isNotEmpty)
+                            Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                            )
+                          else
+                            const Center(child: Icon(Icons.movie_creation, size: 40, color: Colors.grey)),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [Colors.black87, Colors.transparent],
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              child: Text(
+                                item['Name'] ?? '未知内容',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  childCount: embyProvider.latestItems.length,
+                ),
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  bottom: 20,
-                  left: 20,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('沙丘2 (Dune: Part Two)', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      const Text('科幻 / 动作 • 2024 • 4K HDR', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.play_arrow, color: Colors.black),
-                        label: const Text('立即播放', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      )
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text('继续观看', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ),
-          const SizedBox(height: 12),
-          
-          // 横向继续观看列表
-          SizedBox(
-            height: 160,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                _buildContinueCard(context, '繁花', '第 14 集', 0.65, Colors.amber),
-                _buildContinueCard(context, '奥本海默', '剩余 45 分钟', 0.82, Colors.orange),
-                _buildContinueCard(context, '瑞克和莫蒂 S07', '第 5 集', 0.15, Colors.lightGreen),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text('最新添加', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ),
-          const SizedBox(height: 12),
-          
-          // 瀑布流电影海报
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.65,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: 6,
-              itemBuilder: (context, index) {
-                final colors = [Colors.red, Colors.blue, Colors.green, Colors.purple, Colors.orange, Colors.teal];
-                return Container(
-                  decoration: BoxDecoration(
-                    color: colors[index].withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.movie, color: colors[index], size: 40),
-                  ),
-                );
-              },
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContinueCard(BuildContext context, String title, String sub, double progress, Color color) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 90,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: const Center(child: Icon(Icons.play_circle_fill, color: Colors.white54, size: 40)),
-          ),
-          LinearProgressIndicator(value: progress, backgroundColor: Colors.transparent, color: const Color(0xFF52B54B)),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(sub, style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54)),
-              ],
-            ),
-          )
         ],
       ),
     );
   }
 }
 
-// ---------------- Docker 独立管理页 (从首页进入) ----------------
+
 class DockerView extends StatelessWidget {
   const DockerView({super.key});
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -749,9 +705,6 @@ class DockerView extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -759,6 +712,7 @@ class DockerView extends StatelessWidget {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -834,6 +788,7 @@ class VmView extends StatelessWidget {
   const VmView({super.key});
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -857,9 +812,6 @@ class VmView extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -867,6 +819,7 @@ class VmView extends StatelessWidget {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -897,6 +850,7 @@ class VmView extends StatelessWidget {
 class FileBrowserView extends StatelessWidget {
   const FileBrowserView({super.key});
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -920,9 +874,6 @@ class FileBrowserView extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -930,6 +881,7 @@ class FileBrowserView extends StatelessWidget {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -985,6 +937,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
 
+/*
   void _showEmbyAccountDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.embyUrl);
     final userCtrl = TextEditingController(text: AppConfig.activeEmbyUser);
@@ -1008,9 +961,6 @@ class _SettingsViewState extends State<SettingsView> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           ElevatedButton(
             onPressed: () async {
-              await AppConfig.saveEmbyAccount(urlCtrl.text, userCtrl.text, passCtrl.text);
-              Navigator.pop(ctx);
-              context.read<EmbyProvider>().fetchMedia();
             },
             child: const Text('保存并重连'),
           ),
@@ -1018,6 +968,7 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
   }
+*/
 
   @override
   Widget build(BuildContext context) {
