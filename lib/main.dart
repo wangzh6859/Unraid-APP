@@ -101,6 +101,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 }
 
 // ---------------- 首页 (整合 Docker/VM 入口 & CPU 型号) ----------------
+
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
@@ -163,43 +164,6 @@ class DashboardView extends StatelessWidget {
                   decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                   child: Text('API连接报错: ${serverProvider.errorMsg}', style: const TextStyle(color: Colors.red)),
                 ),
-Row(
-            children: [
-              Icon(Icons.dns_rounded, color: Color(0xFFFF5722), size: 28),
-              SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('主服务器', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 22)),
-                  Text('Intel Core i5-13500 · 14 Cores', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
-                ],
-              ),
-            ],
-          ),
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          actions: [
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.greenAccent, size: 16),
-                  SizedBox(width: 6),
-                  Text('运行中', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
               // 快捷入口 (Docker & VM)
               Row(
                 children: [
@@ -248,7 +212,6 @@ Row(
       ],
     );
   }
-
   Widget _buildShortcutCard(BuildContext context, String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
