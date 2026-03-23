@@ -6,6 +6,7 @@ class ServerProvider extends ChangeNotifier {
   final GlancesClient _api = GlancesClient();
   
   bool isLoading = false;
+  bool get isConnected => errorMsg.isEmpty && cpuModel != '未知 CPU';
   String errorMsg = '';
   
   // Dashboard stats

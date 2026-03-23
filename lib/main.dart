@@ -275,13 +275,13 @@ class DashboardView extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _buildSquareCard(context, 'CPU', serverProvider.cpuUsage, '45°C', Icons.memory, Colors.blue)),
+                  Expanded(child: _buildSquareCard(context, 'CPU', '${serverProvider.cpuUsage}%', '45°C', Icons.memory, Colors.blue)),
                   const SizedBox(width: 12),
                   Expanded(child: _buildSquareCard(context, 'GPU', serverProvider.gpuUsage, serverProvider.gpuTemp, Icons.developer_board, Colors.green)),
                 ],
               ),
               const SizedBox(height: 12),
-              _buildWideCard(context, '内存使用率', serverProvider.memUsage, '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: 0.45),
+              _buildWideCard(context, '内存使用率', '${serverProvider.memUsage}%', '14.4 GB / 32 GB', Icons.memory_sharp, Colors.purple, progress: serverProvider.memUsage / 100.0),
               const SizedBox(height: 24),
               
               _buildSectionTitle('阵列存储', Icons.storage_rounded, textColor),
