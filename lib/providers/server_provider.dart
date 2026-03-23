@@ -29,7 +29,7 @@ class ServerProvider extends ChangeNotifier {
   List<dynamic> dockerContainers = [];
   String rawDockerResponse = '';
   List<dynamic> vms = [];
-  String rawVmResponse = '';
+  String rawVmResponse = '正在执行抓取...';
 
   Timer? _timer;
 

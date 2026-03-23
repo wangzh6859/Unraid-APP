@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+new_vm_view = """import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/server_provider.dart';
 
@@ -31,3 +31,7 @@ class VmView extends StatelessWidget {
     );
   }
 }
+"""
+
+with open('lib/screens/vm_view.dart', 'w', encoding='utf-8') as f:
+    f.write(new_vm_view)
