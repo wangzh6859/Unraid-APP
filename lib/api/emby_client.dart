@@ -38,19 +38,29 @@ class EmbyClient {
     return false;
   }
 
-  Future<Map<String, dynamic>?> getLatestMedia() async {
+  Future<Map<String, dynamic>?> getLatestMedia({String? itemType}) async {
     try {
       bool loggedIn = await login();
       if (!loggedIn) return {'error': 'Emby 登录认证失败，尝试访问: ${AppConfig.embyUrl}'};
 
       final url = '${AppConfig.embyUrl}/Users/${AppConfig.embyUserId}/Items/Latest';
+      
+      Map<String, dynamic> params = {
+        'Limit': 30,
+        'Fields': 'PrimaryImageAspectRatio,Overview,CommunityRating,ProductionYear,RunTimeTicks',
+        'IsFolder': false
+      };
+      
+      if (itemType != null && itemType.isNotEmpty) {
+        params['IncludeItemTypes'] = itemType;
+      } else {
+        // default all
+        params['IncludeItemTypes'] = 'Movie,Series,Episode,Anime';
+      }
+
       final response = await _dio.get(
         url,
-        queryParameters: {
-          'Limit': 20,
-          'Fields': 'PrimaryImageAspectRatio',
-          'IsFolder': false
-        },
+        queryParameters: params,
         options: Options(
           headers: {
             'X-Emby-Token': AppConfig.embyToken
