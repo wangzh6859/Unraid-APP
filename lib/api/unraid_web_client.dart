@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:html/parser.dart' show parse;
+
 import '../utils/app_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
