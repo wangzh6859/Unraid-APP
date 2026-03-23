@@ -95,11 +95,11 @@ class ServerProvider extends ChangeNotifier {
 
 
     // Fetch VMs from Native WebGUI
-    final vmResult = await _unraidNative.getVms();
-    if (vmResult != null && vmResult.containsKey('raw')) {
+    final vmResult2 = await _unraidNative.getVms();
+    if (vmResult2 != null && vmResult2.containsKey('raw')) {
        rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
-    } else if (vmResult != null && vmResult.containsKey('error')) {
-       rawVmResponse = vmResult['error'];
+    } else if (vmResult2 != null && vmResult2.containsKey('error')) {
+       rawVmResponse = vmResult2['error'];
     }
     isLoading = false;
     notifyListeners();
