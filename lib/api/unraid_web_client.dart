@@ -92,13 +92,9 @@ class UnraidWebClient {
       if (!ok) return {'error': 'Unraid 登录失败'};
     }
     try {
-      final response = await _dio.post(
-        '${AppConfig.baseDomain}/update.htm',
-        data: {'csrf_token': _csrfToken, 'api': 'vms'},
-        options: Options(
-          headers: {'Cookie': _cookie},
-          contentType: Headers.formUrlEncodedContentType,
-        ),
+      final response = await _dio.get(
+        '${AppConfig.baseDomain}/VMs',
+        options: Options(headers: {'Cookie': _cookie}),
       );
       if (response.statusCode == 200) {
          return {'data': response.data.toString()};
