@@ -47,9 +47,9 @@ class EmbyClient {
       final response = await _dio.get(
         url,
         queryParameters: {
-          'IncludeItemTypes': 'Movie,Series',
-          'Limit': 10,
-          'Fields': 'PrimaryImageAspectRatio'
+          'Limit': 20,
+          'Fields': 'PrimaryImageAspectRatio',
+          'IsFolder': false
         },
         options: Options(
           headers: {
