@@ -114,7 +114,7 @@ class DashboardView extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverAppBar.large(
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.dns_rounded, color: Color(0xFFFF5722), size: 28),
               SizedBox(width: 12),
@@ -399,7 +399,7 @@ class MediaClientView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.movie_filter, color: Color(0xFF52B54B)),
             SizedBox(width: 8),
