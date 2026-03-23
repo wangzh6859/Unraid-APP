@@ -1,0 +1,142 @@
+import re
+
+with open('lib/main.dart', 'r', encoding='utf-8') as f:
+    code = f.read()
+
+old_docker_view = """class DockerView extends StatelessWidget {
+  const DockerView({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Docker 容器')),
+      body: const Center(child: Text('容器管理功能开发中...')),
+    );
+  }
+}"""
+
+new_docker_view = """class DockerView extends StatefulWidget {
+  const DockerView({super.key});
+
+  @override
+  State<DockerView> createState() => _DockerViewState();
+}
+
+class _DockerViewState extends State<DockerView> {
+  @override
+  void initState() {
+    super.initState();
+    // 强制触发一次数据刷新
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ServerProvider>().fetchStats();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final server = context.watch<ServerProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Docker 控制台', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => server.fetchStats(),
+          ),
+        ],
+      ),
+      body: server.isLoading && server.dockerContainers.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : server.errorMsg.isNotEmpty && server.dockerContainers.isEmpty
+              ? Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)))
+              : server.dockerContainers.isEmpty
+                  ? const Center(child: Text('未发现运行中的 Docker 容器\n请确认 Glances 已启用 Docker 监控插件', textAlign: TextAlign.center))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: server.dockerContainers.length,
+                      itemBuilder: (context, index) {
+                        final container = server.dockerContainers[index];
+                        final name = container['name'] ?? container['Names'] ?? '未知容器';
+                        final status = container['Status'] ?? container['status'] ?? 'unknown';
+                        final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
+                        final mem = container['memory']?.containsKey('usage') == true 
+                            ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
+                            : '0.0';
+                        
+                        final isRunning = status.toString().toLowerCase() == 'running';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey.shade900 : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: isRunning ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.2)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.view_in_ar_rounded,
+                                color: isRunning ? Colors.green : Colors.grey,
+                              ),
+                            ),
+                            title: Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.memory, size: 14, color: Colors.blue.shade400),
+                                  const SizedBox(width: 4),
+                                  Text('${cpu.toStringAsFixed(1)}%'),
+                                  const SizedBox(width: 16),
+                                  Icon(Icons.storage, size: 14, color: Colors.orange.shade400),
+                                  const SizedBox(width: 4),
+                                  Text('${mem} MB'),
+                                ],
+                              ),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              onSelected: (value) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('已发送 $value 指令 (功能接入中...)')),
+                                );
+                              },
+                              itemBuilder: (context) => [
+                                if (!isRunning)
+                                  const PopupMenuItem(value: 'start', child: Text('启动 (Start)')),
+                                if (isRunning)
+                                  const PopupMenuItem(value: 'stop', child: Text('停止 (Stop)')),
+                                if (isRunning)
+                                  const PopupMenuItem(value: 'restart', child: Text('重启 (Restart)')),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+    );
+  }
+}"""
+
+code = code.replace(old_docker_view, new_docker_view)
+
+with open('lib/main.dart', 'w', encoding='utf-8') as f:
+    f.write(code)

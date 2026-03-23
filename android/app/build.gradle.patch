@@ -1,0 +1,16 @@
+    signingConfigs {
+        release {
+            storeFile file("release.jks")
+            storePassword "unraid123"
+            keyAlias "unraidapp"
+            keyPassword "unraid123"
+        }
+    }
+    
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }

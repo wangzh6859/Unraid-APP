@@ -1,0 +1,80 @@
+import re
+
+with open('lib/providers/server_provider.dart', 'r', encoding='utf-8') as f:
+    code = f.read()
+
+# Add PortainerClient import
+code = code.replace("import '../api/glances_client.dart';", "import '../api/glances_client.dart';\nimport '../api/portainer_client.dart';")
+
+# Add PortainerClient instance
+code = code.replace("final GlancesClient _api = GlancesClient();", "final GlancesClient _api = GlancesClient();\n  final PortainerClient _portainer = PortainerClient();")
+
+# Modify fetch logic to fetch from Glances AND Portainer
+fetch_silent_old = """  Future<void> _fetchStatsSilent() async {
+    final result = await _api.getServerStats();
+    
+    if (result != null) {
+      if (result.containsKey('error')) {
+         errorMsg = result['error'];
+      } else {
+         final data = result['data'];
+         if (data != null) {
+           _parseData(data);
+         }
+      }
+    } else {
+       errorMsg = '无法连接到 Glances 服务器';
+    }
+    
+    isLoading = false;
+    notifyListeners();
+  }"""
+
+fetch_silent_new = """  Future<void> _fetchStatsSilent() async {
+    final result = await _api.getServerStats();
+    
+    if (result != null) {
+      if (result.containsKey('error')) {
+         errorMsg = result['error'];
+      } else {
+         final data = result['data'];
+         if (data != null) {
+           _parseData(data);
+         }
+      }
+    } else {
+       errorMsg = '无法连接到 Glances 服务器';
+    }
+    
+    // Fetch Docker containers from Portainer
+    final dockerResult = await _portainer.getContainers();
+    if (dockerResult != null) {
+      if (dockerResult.containsKey('error')) {
+         rawDockerResponse = dockerResult['error'];
+         // Fallback to Glances data if portainer fails
+      } else {
+         final cData = dockerResult['data'];
+         if (cData != null && cData is List) {
+           dockerContainers = cData;
+           rawDockerResponse = 'Connected to Portainer: ${cData.length} containers found.';
+         }
+      }
+    }
+    
+    isLoading = false;
+    notifyListeners();
+  }
+  
+  Future<bool> controlContainer(String containerId, String action) async {
+     bool success = await _portainer.containerAction(containerId, action);
+     if (success) {
+       await fetchStats(); // Refresh immediately after action
+     }
+     return success;
+  }"""
+
+code = code.replace(fetch_silent_old, fetch_silent_new)
+
+with open('lib/providers/server_provider.dart', 'w', encoding='utf-8') as f:
+    f.write(code)
+

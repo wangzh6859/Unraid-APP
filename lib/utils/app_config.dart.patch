@@ -1,0 +1,36 @@
+import re
+
+with open('lib/utils/app_config.dart', 'r', encoding='utf-8') as f:
+    code = f.read()
+
+# Add portainerUrl getter and token
+if "String get portainerUrl" not in code:
+    getter_code = """
+  static String get portainerUrl {
+    if (baseDomain.isEmpty) return '';
+    try {
+      Uri uri = Uri.parse(baseDomain);
+      return '${uri.scheme}://pce.${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+    } catch (e) {
+      return '';
+    }
+  }
+  
+  static String portainerToken = '';
+  
+  static Future<void> savePortainerToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('portainerToken', token);
+    portainerToken = token;
+  }
+  """
+    # Replace the last closing brace with getter_code + "}"
+    code = re.sub(r"\}\s*$", getter_code + "\n}", code)
+
+# Update load() method to load portainerToken
+if "portainerToken = prefs.getString('portainerToken') ?? '';" not in code:
+    code = code.replace("embyUserId = prefs.getString('embyUserId') ?? '';", "embyUserId = prefs.getString('embyUserId') ?? '';\n    portainerToken = prefs.getString('portainerToken') ?? '';")
+
+with open('lib/utils/app_config.dart', 'w', encoding='utf-8') as f:
+    f.write(code)
+

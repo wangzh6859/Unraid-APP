@@ -1017,12 +1017,30 @@ class _DockerViewState extends State<DockerView> {
         itemCount: displayList.length,
         itemBuilder: (context, index) {
           final container = displayList[index];
-          final name = container['name'] ?? container['Names'] ?? '未知容器';
-          final status = container['Status'] ?? container['status'] ?? 'unknown';
+          
+          // Handle both Glances and Portainer formats
+          String name = '未知容器';
+          if (container['Names'] != null && container['Names'] is List && container['Names'].isNotEmpty) {
+             name = container['Names'][0].toString().replaceAll('/', ''); // Portainer format
+          } else if (container['name'] != null) {
+             name = container['name']; // Glances format
+          } else if (container['Names'] is String) {
+             name = container['Names'];
+          }
+          
+          final String containerId = container['Id'] ?? container['id'] ?? '';
+          final status = container['State'] ?? container['Status'] ?? container['status'] ?? 'unknown';
+          final statusStr = status.toString().toLowerCase();
+          final isRunning = statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up');
+          
+          // Portainer list doesn't return live CPU/Mem, so we display Image name or State if cpu/mem is missing
+          final hasCpu = container['cpu'] != null;
           final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
           final mem = container['memory']?.containsKey('usage') == true 
               ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
               : '0.0';
+          
+          final image = container['Image'] ?? '';
           
           final statusStr = status.toString().toLowerCase();
           final isRunning = statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up');
@@ -1075,10 +1093,19 @@ class _DockerViewState extends State<DockerView> {
               ),
               trailing: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
-                onSelected: (value) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('已发送 $value 指令 (功能接入中...)')),
-                  );
+                onSelected: (value) async {
+                  if (containerId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('容器ID为空，无法操作')));
+                    return;
+                  }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在发送 $value 指令...')));
+                  bool success = await server.controlContainer(containerId, value);
+                  if (success) {
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令 $value 执行成功！', style: const TextStyle(color: Colors.green))));
+                  } else {
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令 $value 执行失败！', style: const TextStyle(color: Colors.red))));
+                  }
                 },
                 itemBuilder: (context) => <PopupMenuEntry<String>>[
                   if (!isRunning)

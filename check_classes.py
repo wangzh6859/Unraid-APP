@@ -3,4 +3,4 @@ with open('lib/main.dart', 'r', encoding='utf-8') as f:
     code = f.read()
 
 classes = re.findall(r"class (\w+)", code)
-print("Classes:", list(set(classes)))
+print("Current classes:", list(set(classes)))

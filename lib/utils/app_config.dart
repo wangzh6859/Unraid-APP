@@ -98,4 +98,23 @@ class AppConfig {
   static String get activeEmbyPass {
     return embyCustomPass.isNotEmpty ? embyCustomPass : password;
   }
+
+  static String get portainerUrl {
+    if (baseDomain.isEmpty) return '';
+    try {
+      Uri uri = Uri.parse(baseDomain);
+      return '${uri.scheme}://pce.${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+    } catch (e) {
+      return '';
+    }
+  }
+  
+  static String portainerToken = '';
+  
+  static Future<void> savePortainerToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('portainerToken', token);
+    portainerToken = token;
+  }
+  
 }

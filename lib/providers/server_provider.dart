@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/glances_client.dart';
+import '../api/portainer_client.dart';
 
 class ServerProvider extends ChangeNotifier {
   ServerProvider() {
     startAutoRefresh();
   }
   final GlancesClient _api = GlancesClient();
+  final PortainerClient _portainer = PortainerClient();
   
   bool isLoading = false;
   bool get isConnected => errorMsg.isEmpty && cpuModel != '未知 CPU';
@@ -62,8 +64,31 @@ class ServerProvider extends ChangeNotifier {
        errorMsg = '无法连接到 Glances 服务器';
     }
     
+    // Fetch Docker containers from Portainer
+    final dockerResult = await _portainer.getContainers();
+    if (dockerResult != null) {
+      if (dockerResult.containsKey('error')) {
+         rawDockerResponse = dockerResult['error'];
+         // Fallback to Glances data if portainer fails
+      } else {
+         final cData = dockerResult['data'];
+         if (cData != null && cData is List) {
+           dockerContainers = cData;
+           rawDockerResponse = 'Connected to Portainer: ${cData.length} containers found.';
+         }
+      }
+    }
+    
     isLoading = false;
     notifyListeners();
+  }
+  
+  Future<bool> controlContainer(String containerId, String action) async {
+     bool success = await _portainer.containerAction(containerId, action);
+     if (success) {
+       await fetchStats(); // Refresh immediately after action
+     }
+     return success;
   }
 
   void _parseData(Map<String, dynamic> data) {
