@@ -261,7 +261,7 @@ class DashboardView extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: _buildShortcutCard(context, 'Docker 容器', '12 运行中', Icons.view_in_ar, Colors.purple, () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DockerMainView()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DockerView()));
                   })),
                   const SizedBox(width: 12),
                   Expanded(child: _buildShortcutCard(context, '虚拟机', '1 运行中', Icons.computer, Colors.teal, () {
