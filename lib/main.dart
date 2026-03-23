@@ -945,7 +945,8 @@ class DockerView extends StatefulWidget {
   State<DockerView> createState() => _DockerViewState();
 }
 
-IconData _getDockerIcon(String name) {
+IconData _getDockerIcon(String? name) {
+    if (name == null) return Icons.view_in_ar_rounded;
     name = name.toLowerCase();
     if (name.contains('nginx') || name.contains('proxy') || name.contains('swag')) return Icons.public;
     if (name.contains('sql') || name.contains('db') || name.contains('redis') || name.contains('mongo') || name.contains('mariadb')) return Icons.storage;
@@ -959,6 +960,7 @@ IconData _getDockerIcon(String name) {
   }
 
 class _DockerViewState extends State<DockerView> {
+  String _sortMode = 'status'; // default sort by status
   @override
   void initState() {
     super.initState();
@@ -983,11 +985,38 @@ class _DockerViewState extends State<DockerView> {
         return SingleChildScrollView(padding: const EdgeInsets.all(24), child: SelectableText('监控模块返回信息：\n\n${server.rawDockerResponse}', style: TextStyle(color: Colors.grey.shade600)));
       }
       
+      List<dynamic> displayList = List.from(server.dockerContainers);
+      
+      displayList.sort((a, b) {
+        if (_sortMode == 'name') {
+           String nameA = a['name'] ?? a['Names'] ?? '';
+           String nameB = b['name'] ?? b['Names'] ?? '';
+           return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+        } else if (_sortMode == 'cpu') {
+           double cpuA = a['cpu']?.containsKey('total') == true ? (a['cpu']['total'] as num).toDouble() : 0.0;
+           double cpuB = b['cpu']?.containsKey('total') == true ? (b['cpu']['total'] as num).toDouble() : 0.0;
+           return cpuB.compareTo(cpuA); // descending
+        } else if (_sortMode == 'mem') {
+           double memA = a['memory']?.containsKey('usage') == true ? (a['memory']['usage'] as num).toDouble() : 0.0;
+           double memB = b['memory']?.containsKey('usage') == true ? (b['memory']['usage'] as num).toDouble() : 0.0;
+           return memB.compareTo(memA); // descending
+        } else {
+           // Default status sorting: Running first
+           String statusA = a['status']?.toString().toLowerCase() ?? a['Status']?.toString().toLowerCase() ?? '';
+           String statusB = b['status']?.toString().toLowerCase() ?? b['Status']?.toString().toLowerCase() ?? '';
+           bool aUp = statusA.contains('running') || statusA.contains('healthy') || statusA.contains('up');
+           bool bUp = statusB.contains('running') || statusB.contains('healthy') || statusB.contains('up');
+           if (aUp && !bUp) return -1;
+           if (bUp && !aUp) return 1;
+           return 0;
+        }
+      });
+
       return ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: server.dockerContainers.length,
+        itemCount: displayList.length,
         itemBuilder: (context, index) {
-          final container = server.dockerContainers[index];
+          final container = displayList[index];
           final name = container['name'] ?? container['Names'] ?? '未知容器';
           final status = container['Status'] ?? container['status'] ?? 'unknown';
           final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
@@ -1070,6 +1099,21 @@ class _DockerViewState extends State<DockerView> {
       appBar: AppBar(
         title: const Text('Docker 控制台', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: '排序方式',
+            onSelected: (value) {
+              setState(() {
+                _sortMode = value;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'status', child: Text('按运行状态')),
+              const PopupMenuItem(value: 'name', child: Text('按名称字母')),
+              const PopupMenuItem(value: 'cpu', child: Text('按 CPU 占用')),
+              const PopupMenuItem(value: 'mem', child: Text('按 内存占用')),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => server.fetchStats(),
