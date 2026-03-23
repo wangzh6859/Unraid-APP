@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/server_provider.dart';
+import 'providers/emby_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 全局主题状态管理器
@@ -11,6 +12,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ServerProvider()),
+        ChangeNotifierProvider(create: (_) => EmbyProvider()),
       ],
       child: const UnraidApp(),
     ),
@@ -680,9 +682,8 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _ipController = TextEditingController();
   final TextEditingController _keyController = TextEditingController();
-  final TextEditingController _sshHostController = TextEditingController();
-  final TextEditingController _sshUserController = TextEditingController();
-  final TextEditingController _sshPassController = TextEditingController();
+  final TextEditingController _embyUrlController = TextEditingController();
+  final TextEditingController _embyKeyController = TextEditingController();
   bool _isSaving = false;
 
   @override
@@ -696,9 +697,8 @@ class _SettingsViewState extends State<SettingsView> {
     setState(() {
       _ipController.text = prefs.getString('unraid_ip') ?? 'http://192.168.1.100:19009';
       _keyController.text = prefs.getString('unraid_api_key') ?? '';
-      _sshHostController.text = prefs.getString('ssh_host') ?? '';
-      _sshUserController.text = prefs.getString('ssh_user') ?? 'root';
-      _sshPassController.text = prefs.getString('ssh_pass') ?? '';
+      _embyUrlController.text = prefs.getString('emby_url') ?? 'https://emby.5nas.asia:16666';
+      _embyKeyController.text = prefs.getString('emby_api_key') ?? '675fa80d238d42caaed2f667c6c28b50';
     });
   }
 
@@ -707,14 +707,12 @@ class _SettingsViewState extends State<SettingsView> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('unraid_ip', _ipController.text);
     await prefs.setString('unraid_api_key', _keyController.text);
-    await prefs.setString('ssh_host', _sshHostController.text);
-    await prefs.setString('ssh_user', _sshUserController.text);
-    await prefs.setString('ssh_pass', _sshPassController.text);
-    await prefs.setInt('ssh_port', 22);
+    await prefs.setString('emby_url', _embyUrlController.text);
+    await prefs.setString('emby_api_key', _embyKeyController.text);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ 服务器配置已保存！网络引擎将重新初始化。'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('✅ 配置已保存！'), backgroundColor: Colors.green),
       );
       setState(() => _isSaving = false);
     }
@@ -769,9 +767,25 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ]),
           
+                    const SizedBox(height: 24),
+          _buildSettingsGroup(context, 'Emby 影音中心配置', [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Emby 服务端地址 (包含端口)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(controller: _embyUrlController, decoration: InputDecoration(hintText: '例: https://emby.5nas.asia:8096', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.movie))),
+                  const SizedBox(height: 16),
+                  const Text('Emby API 密钥', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(controller: _embyKeyController, obscureText: true, decoration: InputDecoration(hintText: '输入在 Emby 后台生成的 API Key', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.vpn_key))),
+                ],
+              ),
+            ),
+          ]),
           const SizedBox(height: 24),
-          
-          
           SizedBox(
             width: double.infinity,
             height: 48,
