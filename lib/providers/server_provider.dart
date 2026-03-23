@@ -26,20 +26,40 @@ class ServerProvider with ChangeNotifier {
         isConnected = false;
         errorMsg = data['error'];
       } else if (data.containsKey('errors')) {
-        // GraphQL 错误
         isConnected = false;
         errorMsg = 'GraphQL报错: ' + (data['errors'][0]['message'] ?? '未知错误');
       } else {
         isConnected = true;
-        // 尝试解析真实的 info 数据
         try {
-          final info = data['data']['info'];
-          // 暂时用占位，证明拿到了
-          cpuUsage = info['cpu']['cores'].toString() + ' 核';
-          memUsage = '已获取'; 
+          final resData = data['data'];
+          
+          // CPU 占用率解析 (尝试从 system.state.cpuLoad 获取)
+          if (resData['system'] != null && resData['system']['state'] != null) {
+            var load = resData['system']['state']['cpuLoad'];
+            if (load != null) {
+               cpuUsage = '${load.toString()}%';
+            }
+            
+            // 内存解析
+            var mem = resData['system']['state']['memory'];
+            if (mem != null) {
+               double free = (mem['free'] ?? 0) / 1024 / 1024 / 1024; // 假设返回的是 bytes
+               double total = (mem['total'] ?? 1) / 1024 / 1024 / 1024;
+               if (total > 0) {
+                 double usage = ((total - free) / total) * 100;
+                 memUsage = '${usage.toStringAsFixed(1)}%';
+               }
+            }
+          } else {
+             // 如果没拿到 system.state，降级显示核心数以防报错
+             final info = resData['info'];
+             if (info != null && info['cpu'] != null) {
+                cpuUsage = info['cpu']['cores'].toString() + ' 核';
+                memUsage = '未知';
+             }
+          }
         } catch (e) {
-          errorMsg = '数据解析失败: 请确认您的Unraid版本是否支持此查询';
-          isConnected = false;
+          errorMsg = '数据解析异常，数据结构不匹配';
         }
       }
     } else {
