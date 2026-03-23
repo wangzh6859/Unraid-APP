@@ -1,7 +1,7 @@
 name: unraid_app
 description: "A modern Unraid management client for Android."
 publish_to: 'none'
-version: 2.0.5+35
+version: 2.0.6+36
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

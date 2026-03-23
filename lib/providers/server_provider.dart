@@ -53,7 +53,7 @@ class ServerProvider extends ChangeNotifier {
     if (dashResult != null && dashResult.containsKey('error')) {
       errorMsg = dashResult['error'];
     } else if (dashResult != null && dashResult.containsKey('data')) {
-      errorMsg = ''; // clear error
+      errorMsg = ''; rawVmResponse = 'Token: ${_unraidNative.getCsrfToken()}\n\n';
       _parseNativeDashboard(dashResult['data']);
     }
 

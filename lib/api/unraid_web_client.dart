@@ -4,14 +4,15 @@ import '../utils/app_config.dart';
 class UnraidWebClient {
   final Dio _dio = Dio();
   String _csrfToken = '';
+  String getCsrfToken() => _csrfToken;
   String _cookie = '';
 
   
   UnraidWebClient() {
     _dio.options.validateStatus = (status) => true;
     _dio.options.followRedirects = false; // Important for login capture
-    _dio.options.connectTimeout = const Duration(seconds: 5);
-    _dio.options.receiveTimeout = const Duration(seconds: 5);
+    _dio.options.connectTimeout = const Duration(seconds: 10);
+    _dio.options.receiveTimeout = const Duration(seconds: 10);
   }
 
 
@@ -55,7 +56,7 @@ class UnraidWebClient {
          throw Exception("Dashboard 响应码: ${dashResp.statusCode}");
       }
     } catch (e) {
-      return false;
+      throw Exception("登录请求异常: $e");
     }
   }
 
@@ -69,8 +70,11 @@ class UnraidWebClient {
     try {
       final response = await _dio.post(
         '${AppConfig.baseDomain}/update.htm',
-        data: FormData.fromMap({'csrf_token': _csrfToken, 'api': 'sys'}),
-        options: Options(headers: {'Cookie': _cookie}),
+        data: {'csrf_token': _csrfToken, 'api': 'sys'},
+        options: Options(
+          headers: {'Cookie': _cookie},
+          contentType: Headers.formUrlEncodedContentType,
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -90,8 +94,11 @@ class UnraidWebClient {
     try {
       final response = await _dio.post(
         '${AppConfig.baseDomain}/update.htm',
-        data: FormData.fromMap({'csrf_token': _csrfToken, 'api': 'vms'}),
-        options: Options(headers: {'Cookie': _cookie}),
+        data: {'csrf_token': _csrfToken, 'api': 'vms'},
+        options: Options(
+          headers: {'Cookie': _cookie},
+          contentType: Headers.formUrlEncodedContentType,
+        ),
       );
       if (response.statusCode == 200) {
          return {'data': response.data.toString()};
