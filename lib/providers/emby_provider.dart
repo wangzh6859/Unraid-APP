@@ -8,25 +8,13 @@ class EmbyProvider extends ChangeNotifier {
   bool isLoading = false;
   String errorMsg = '';
   List<dynamic> latestItems = [];
-  
-  String currentCategory = ''; // empty means ALL
-  final List<Map<String, String>> categories = [
-    {'name': '全部', 'value': ''},
-    {'name': '电影', 'value': 'Movie'},
-    {'name': '剧集', 'value': 'Series'},
-    {'name': '动漫', 'value': 'Anime'}, // Emby might use Anime or just Series, but we'll request Anime just in case.
-  ];
 
-  Future<void> fetchMedia({String? category}) async {
-    if (category != null) {
-      currentCategory = category;
-    }
-    
+  Future<void> fetchMedia() async {
     isLoading = true;
     errorMsg = '';
     notifyListeners();
 
-    final result = await _api.getLatestMedia(itemType: currentCategory);
+    final result = await _api.getLatestMedia();
     
     if (result != null) {
       if (result.containsKey('error')) {
@@ -49,10 +37,5 @@ class EmbyProvider extends ChangeNotifier {
   String getImageUrl(String itemId) {
     if (AppConfig.embyUrl.isEmpty) return '';
     return '${AppConfig.embyUrl}/Items/$itemId/Images/Primary';
-  }
-  
-  String getBackdropUrl(String itemId) {
-    if (AppConfig.embyUrl.isEmpty) return '';
-    return '${AppConfig.embyUrl}/Items/$itemId/Images/Backdrop';
   }
 }
