@@ -8,11 +8,14 @@ class GlancesClient {
   Future<Map<String, dynamic>?> getServerStats() async {
     try {
       await AppConfig.load();
-      if (AppConfig.baseDomain.isEmpty) return {'error': '未配置服务器'};
+      if (AppConfig.baseDomain.isEmpty) return {'error': '未配置主服务器'};
 
       String basicAuth = 'Basic ' + base64Encode(utf8.encode('${AppConfig.username}:${AppConfig.password}'));
-      final response = await _dio.get(
-        '${AppConfig.glancesUrl}/api/3/all',
+      
+      // Try Glances API v3
+      String targetUrl = '${AppConfig.glancesUrl}/api/3/all';
+      Response response = await _dio.get(
+        targetUrl,
         options: Options(
           headers: {'Authorization': basicAuth},
           validateStatus: (_) => true,
@@ -20,15 +23,31 @@ class GlancesClient {
         ),
       );
 
+      // If 404, maybe it's Glances API v4 (newer versions) or api/2
+      if (response.statusCode == 404) {
+         targetUrl = '${AppConfig.glancesUrl}/api/4/all';
+         response = await _dio.get(
+           targetUrl,
+           options: Options(
+             headers: {'Authorization': basicAuth},
+             validateStatus: (_) => true,
+             receiveTimeout: const Duration(seconds: 5),
+           ),
+         );
+      }
+
       if (response.statusCode == 401) {
-         return {'error': 'Glances 认证失败，请检查账户密码'};
+         return {'error': 'Glances 认证失败，请检查账户密码\n地址: ${AppConfig.glancesUrl}'};
+      }
+      if (response.statusCode == 404) {
+         return {'error': 'Glances 404: 找不到API接口。\n请确认:\n1. https://glances.您的域名 是否配置了反向代理。\n2. 代理是否正确指向了 Glances 的 61208 端口。'};
       }
       if (response.statusCode != 200) {
-         return {'error': 'Glances 异常，代码: ${response.statusCode}\n尝试访问: ${AppConfig.glancesUrl}'};
+         return {'error': 'Glances 异常，代码: ${response.statusCode}\n尝试访问: $targetUrl'};
       }
       return {'data': response.data};
     } catch (e) {
-      return {'error': '网络异常，请检查Glances地址: ${AppConfig.glancesUrl}'};
+      return {'error': '网络异常: ${e.toString().split('\n').first}\n地址: ${AppConfig.glancesUrl}'};
     }
   }
 }
