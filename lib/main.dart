@@ -1165,13 +1165,7 @@ class _DockerViewState extends State<DockerView> {
             tooltip: '配置 Portainer 账号',
             onPressed: _showPortainerConfigDialog,
           ),
-          IconButton(
-            icon: const Icon(Icons.account_tree),
-            tooltip: 'Docker Compose',
-            onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Docker Compose 解析器正在开发中...')));
-            },
-          ),
+
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
             tooltip: '排序方式',
