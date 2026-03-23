@@ -261,7 +261,7 @@ class DashboardView extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: _buildShortcutCard(context, 'Docker 容器', '12 运行中', Icons.view_in_ar, Colors.purple, () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DockerView()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DockerMainView()));
                   })),
                   const SizedBox(width: 12),
                   Expanded(child: _buildShortcutCard(context, '虚拟机', '1 运行中', Icons.computer, Colors.teal, () {
@@ -1051,7 +1051,7 @@ class _DockerViewState extends State<DockerView> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  _getDockerIcon(name),
+                  isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
                   color: isRunning ? Colors.green : Colors.grey,
                 ),
               ),
@@ -1099,6 +1099,13 @@ class _DockerViewState extends State<DockerView> {
       appBar: AppBar(
         title: const Text('Docker 控制台', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_tree),
+            tooltip: 'Docker Compose',
+            onPressed: () {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Docker Compose 解析器正在开发中...')));
+            },
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
             tooltip: '排序方式',
