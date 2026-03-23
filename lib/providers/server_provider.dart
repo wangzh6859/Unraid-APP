@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/glances_client.dart';
 import '../api/portainer_client.dart';
+import '../api/unraid_web_client.dart';
 
 class ServerProvider extends ChangeNotifier {
   ServerProvider() {
@@ -9,8 +10,19 @@ class ServerProvider extends ChangeNotifier {
   }
   final GlancesClient _api = GlancesClient();
   final PortainerClient _portainer = PortainerClient();
+  final UnraidWebClient _unraidNative = UnraidWebClient();
   
-  bool isLoading = false;
+  bool 
+    // Fetch VMs from Native WebGUI
+    final vmResult = await _unraidNative.getVms();
+    if (vmResult != null && vmResult.containsKey('raw')) {
+       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
+       // We will need to parse the raw html/json later.
+    } else if (vmResult != null && vmResult.containsKey('error')) {
+       rawVmResponse = vmResult['error'];
+    }
+
+    isLoading = false;
   bool get isConnected => errorMsg.isEmpty && cpuModel != '未知 CPU';
   String errorMsg = '';
   
@@ -25,6 +37,8 @@ class ServerProvider extends ChangeNotifier {
   
   // Docker stats
   List<dynamic> dockerContainers = [];
+  List<dynamic> vms = [];
+  String rawVmResponse = '';
   String rawDockerResponse = '';
 
   Timer? _refreshTimer;
@@ -79,6 +93,16 @@ class ServerProvider extends ChangeNotifier {
       }
     }
     
+    
+    // Fetch VMs from Native WebGUI
+    final vmResult = await _unraidNative.getVms();
+    if (vmResult != null && vmResult.containsKey('raw')) {
+       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
+       // We will need to parse the raw html/json later.
+    } else if (vmResult != null && vmResult.containsKey('error')) {
+       rawVmResponse = vmResult['error'];
+    }
+
     isLoading = false;
     notifyListeners();
   }

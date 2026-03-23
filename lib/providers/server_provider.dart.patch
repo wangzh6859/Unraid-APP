@@ -3,77 +3,28 @@ import re
 with open('lib/providers/server_provider.dart', 'r', encoding='utf-8') as f:
     code = f.read()
 
-# Add PortainerClient import
-code = code.replace("import '../api/glances_client.dart';", "import '../api/glances_client.dart';\nimport '../api/portainer_client.dart';")
+# Add UnraidWebClient
+if "UnraidWebClient" not in code:
+    code = code.replace("import '../api/portainer_client.dart';", "import '../api/portainer_client.dart';\nimport '../api/unraid_web_client.dart';")
+    code = code.replace("final PortainerClient _portainer = PortainerClient();", "final PortainerClient _portainer = PortainerClient();\n  final UnraidWebClient _unraidNative = UnraidWebClient();")
 
-# Add PortainerClient instance
-code = code.replace("final GlancesClient _api = GlancesClient();", "final GlancesClient _api = GlancesClient();\n  final PortainerClient _portainer = PortainerClient();")
+# Add VM list state
+if "List<dynamic> vms = [];" not in code:
+    code = code.replace("List<dynamic> dockerContainers = [];", "List<dynamic> dockerContainers = [];\n  List<dynamic> vms = [];\n  String rawVmResponse = '';")
 
-# Modify fetch logic to fetch from Glances AND Portainer
-fetch_silent_old = """  Future<void> _fetchStatsSilent() async {
-    final result = await _api.getServerStats();
-    
-    if (result != null) {
-      if (result.containsKey('error')) {
-         errorMsg = result['error'];
-      } else {
-         final data = result['data'];
-         if (data != null) {
-           _parseData(data);
-         }
-      }
-    } else {
-       errorMsg = '无法连接到 Glances 服务器';
+# Fetch VMs silent
+fetch_vms_code = """
+    // Fetch VMs from Native WebGUI
+    final vmResult = await _unraidNative.getVms();
+    if (vmResult != null && vmResult.containsKey('raw')) {
+       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
+       // We will need to parse the raw html/json later.
+    } else if (vmResult != null && vmResult.containsKey('error')) {
+       rawVmResponse = vmResult['error'];
     }
-    
-    isLoading = false;
-    notifyListeners();
-  }"""
+"""
 
-fetch_silent_new = """  Future<void> _fetchStatsSilent() async {
-    final result = await _api.getServerStats();
-    
-    if (result != null) {
-      if (result.containsKey('error')) {
-         errorMsg = result['error'];
-      } else {
-         final data = result['data'];
-         if (data != null) {
-           _parseData(data);
-         }
-      }
-    } else {
-       errorMsg = '无法连接到 Glances 服务器';
-    }
-    
-    // Fetch Docker containers from Portainer
-    final dockerResult = await _portainer.getContainers();
-    if (dockerResult != null) {
-      if (dockerResult.containsKey('error')) {
-         rawDockerResponse = dockerResult['error'];
-         // Fallback to Glances data if portainer fails
-      } else {
-         final cData = dockerResult['data'];
-         if (cData != null && cData is List) {
-           dockerContainers = cData;
-           rawDockerResponse = 'Connected to Portainer: ${cData.length} containers found.';
-         }
-      }
-    }
-    
-    isLoading = false;
-    notifyListeners();
-  }
-  
-  Future<bool> controlContainer(String containerId, String action) async {
-     bool success = await _portainer.containerAction(containerId, action);
-     if (success) {
-       await fetchStats(); // Refresh immediately after action
-     }
-     return success;
-  }"""
-
-code = code.replace(fetch_silent_old, fetch_silent_new)
+code = code.replace("isLoading = false;", fetch_vms_code + "\n    isLoading = false;")
 
 with open('lib/providers/server_provider.dart', 'w', encoding='utf-8') as f:
     f.write(code)

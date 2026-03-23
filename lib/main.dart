@@ -5,6 +5,7 @@ import 'providers/emby_provider.dart';
 
 import 'utils/app_config.dart';
 import 'screens/login_screen.dart';
+import 'screens/vm_view.dart';
 import 'screens/media_detail_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
