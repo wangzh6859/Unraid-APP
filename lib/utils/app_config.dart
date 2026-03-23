@@ -109,6 +109,23 @@ class AppConfig {
     }
   }
   
+  
+  static String portainerUser = '';
+  static String portainerPass = '';
+  
+  static String get activePortainerUser => portainerUser.isNotEmpty ? portainerUser : username;
+  static String get activePortainerPass => portainerPass.isNotEmpty ? portainerPass : password;
+  
+  static Future<void> savePortainerAccount(String user, String pass) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('portainerUser', user);
+    await prefs.setString('portainerPass', pass);
+    portainerUser = user;
+    portainerPass = pass;
+    // clear token to force re-login
+    await savePortainerToken('');
+  }
+
   static String portainerToken = '';
   
   static Future<void> savePortainerToken(String token) async {

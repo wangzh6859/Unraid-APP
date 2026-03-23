@@ -17,8 +17,8 @@ class PortainerClient {
       final response = await _dio.post(
         url,
         data: {
-          "Username": AppConfig.username,
-          "Password": AppConfig.password
+          "Username": AppConfig.activePortainerUser,
+          "Password": AppConfig.activePortainerPass
         },
         options: Options(validateStatus: (_) => true),
       );
