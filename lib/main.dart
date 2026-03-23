@@ -936,3 +936,26 @@ class _SettingsViewState extends State<SettingsView> {
     );
 }
 }
+
+// Restored Missing Views
+class DockerView extends StatelessWidget {
+  const DockerView({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Docker 容器')),
+      body: const Center(child: Text('容器管理功能开发中...')),
+    );
+  }
+}
+
+class VmView extends StatelessWidget {
+  const VmView({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('虚拟机')),
+      body: const Center(child: Text('虚拟机管理功能开发中...')),
+    );
+  }
+}
