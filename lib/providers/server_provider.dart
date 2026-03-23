@@ -5,25 +5,35 @@ class ServerProvider with ChangeNotifier {
   final UnraidClient _api = UnraidClient();
   
   bool isLoading = false;
+  bool isConnected = false;
   String cpuUsage = '0%';
   String memUsage = '0%';
+  String errorMsg = '';
   
   ServerProvider() {
-    _init();
+    refreshData();
   }
 
-  Future<void> _init() async {
-    await _api.init();
-    fetchData();
-  }
-
-  Future<void> fetchData() async {
+  Future<void> refreshData() async {
     isLoading = true;
+    errorMsg = '';
     notifyListeners();
 
     final data = await _api.getServerStats();
+    
     if (data != null) {
-      // 解析真实数据
+      if (data.containsKey('error')) {
+        isConnected = false;
+        errorMsg = data['error'];
+      } else {
+        isConnected = true;
+        // Mock parsing since we need to see the actual JSON structure first
+        cpuUsage = '22%'; 
+        memUsage = '45%';
+      }
+    } else {
+      isConnected = false;
+      errorMsg = "未配置IP或连接超时";
     }
 
     isLoading = false;
