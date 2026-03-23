@@ -7,14 +7,12 @@ class UnraidClient {
   String? baseUrl;
   String? apiKey;
   
-  
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     String? rawUrl = prefs.getString('unraid_ip');
     apiKey = prefs.getString('unraid_api_key');
     
     if (rawUrl != null && rawUrl.isNotEmpty) {
-      // 容错处理: 如果用户输入了结尾多余的字符清理掉，确保是合法的 baseUrl
       rawUrl = rawUrl.trim();
       if (!rawUrl.startsWith('http')) {
         rawUrl = 'http://' + rawUrl;
@@ -39,7 +37,6 @@ class UnraidClient {
       await init();
       if (baseUrl == null || baseUrl!.isEmpty) return null;
 
-      // Unraid 官方 GraphQL 接口查询系统信息
       final response = await _dio.post(
         '/graphql',
         data: {
@@ -51,12 +48,9 @@ class UnraidClient {
         try {
           return jsonDecode(response.data) as Map<String, dynamic>;
         } catch (_) {
-          // 如果返回了纯 HTML 页面，提示端口不对
-          String preview = response.data.toString().replaceAll('
-', ' ').trim();
+          String preview = response.data.toString().replaceAll('\n', ' ').trim();
           if (preview.length > 50) preview = preview.substring(0, 50) + '...';
-          return {'error': '收到网页而非接口数据: 可能是填错了端口（如果是v7.2+直接填控制台地址，如果是旧版填插件端口）。
-返回内容: $preview'};
+          return {'error': '收到网页而非接口数据: 可能是填错了端口（如果是v7.2+直接填控制台地址，如果是旧版填插件端口）。\n返回内容: $preview'};
         }
       }
       
