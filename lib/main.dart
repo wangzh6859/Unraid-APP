@@ -227,7 +227,7 @@ class DashboardView extends StatelessWidget {
               icon: serverProvider.isLoading 
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) 
                 : const Icon(Icons.refresh),
-              onPressed: () => serverProvider.refreshData(),
+              onPressed: () => serverProvider.fetchStats(),
             ),
             Container(
               margin: const EdgeInsets.only(right: 16),
