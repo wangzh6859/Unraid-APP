@@ -1,65 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../api/unraid_client.dart';
+import '../api/glances_client.dart';
 
-
-
-class ServerProvider with ChangeNotifier {
-  final UnraidClient _api = UnraidClient();
-  bool isLoading = false;
+class ServerProvider extends ChangeNotifier {
+  final GlancesClient _api = GlancesClient();
+  
   bool isConnected = false;
-  String cpuUsage = '0%';
-  String memUsage = '0%';
-  String gpuUsage = '未知';
-  String gpuTemp = '--°C';
+  bool isLoading = false;
   String errorMsg = '';
   
-  ServerProvider() {
-    refreshData();
-  }
-
-  String cpuModel = 'Intel Core i5-13500 · 14 Cores'; // 默认
+  String cpuModel = 'Glances Node';
+  String cpuUsage = '0%';
+  String memUsage = '0%';
+  String gpuUsage = '核显/待机';
+  String gpuTemp = '45°C';
 
   Future<void> refreshData() async {
     isLoading = true;
     errorMsg = '';
     notifyListeners();
 
-    final data = await _api.getServerStats();
-    
-    if (data != null) {
-      if (data.containsKey('error')) {
-        isConnected = false;
-        errorMsg = data['error'];
-      } else if (data.containsKey('errors')) {
-        isConnected = false;
-        errorMsg = 'GraphQL报错: ' + (data['errors'][0]['message'] ?? '未知错误');
-      } else {
-        isConnected = true;
-        try {
-          final resData = data['data'];
-          if (resData != null) {
-             final info = resData['info'];
-             if (info != null && info['cpu'] != null) {
-               cpuModel = '${info['cpu']['brand']}';
-               cpuUsage = "${info['cpu']['cores']}核";
-             }
-          } else if (data['errors'] != null) {
-             errorMsg = 'GraphQL: ${data['errors'][0]['message']}';
+    final result = await _api.getServerStats();
+    if (result != null) {
+       if (result.containsKey('error')) {
+          isConnected = false;
+          errorMsg = result['error'];
+       } else {
+          isConnected = true;
+          try {
+            final data = result['data'];
+            if (data['system'] != null) {
+               cpuModel = '${data['system']['os_name']} · ${data['system']['hostname']}';
+            }
+            if (data['cpu'] != null) {
+               cpuUsage = '${data['cpu']['total']}%';
+            }
+            if (data['mem'] != null) {
+               memUsage = '${data['mem']['percent']}%';
+            }
+            if (data['gpu'] != null && data['gpu'].isNotEmpty) {
+               gpuUsage = '${data['gpu'][0]['proc']}%';
+               gpuTemp = '${data['gpu'][0]['temperature'] ?? 'N/A'}°C';
+            } else {
+               gpuUsage = '未检测到独立GPU';
+               gpuTemp = '--';
+            }
+          } catch (e) {
+            errorMsg = '数据解析异常';
           }
-        } catch (e) {
-          errorMsg = '数据解析异常: $e';
-        }
-      }
+       }
     } else {
-      isConnected = false;
-      errorMsg = "网络请求失败";
+       isConnected = false;
+       errorMsg = '网络超时';
     }
 
-    // GPU 数据读取已取消
-    gpuUsage = "核显待机";
-    gpuTemp = "45°C";
-    
     isLoading = false;
     notifyListeners();
   }

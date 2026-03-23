@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/server_provider.dart';
 import 'providers/emby_provider.dart';
+
+import 'utils/app_config.dart';
+import 'screens/login_screen.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 全局主题状态管理器
@@ -19,39 +23,55 @@ void main() {
   );
 }
 
-class UnraidApp extends StatelessWidget {
+class UnraidApp extends StatefulWidget {
   const UnraidApp({super.key});
+  @override
+  State<UnraidApp> createState() => _UnraidAppState();
+}
+
+class _UnraidAppState extends State<UnraidApp> {
+  bool _isReady = false;
+  bool _hasLogin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    await AppConfig.load();
+    setState(() {
+      _hasLogin = AppConfig.baseDomain.isNotEmpty && AppConfig.username.isNotEmpty;
+      _isReady = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (_, ThemeMode currentMode, __) {
+      builder: (_, mode, __) {
         return MaterialApp(
-          title: 'Unraid 管家',
+          title: 'Unraid Dashboard',
           debugShowCheckedModeBanner: false,
-          themeMode: currentMode,
+          themeMode: mode,
           theme: ThemeData(
-            fontFamily: 'Roboto',
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFFF5722),
-              brightness: Brightness.light,
-              surface: const Color(0xFFF5F5F7),
-            ),
-            cardColor: Colors.white,
+            brightness: Brightness.light,
+            colorSchemeSeed: const Color(0xFFFF5722),
+            scaffoldBackgroundColor: const Color(0xFFF2F2F6),
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
-            fontFamily: 'Roboto',
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFFF5722),
-              brightness: Brightness.dark,
-              surface: const Color(0xFF0F0F0F),
-            ),
-            cardColor: const Color(0xFF1A1A1A),
+            brightness: Brightness.dark,
+            colorSchemeSeed: const Color(0xFFFF5722),
+            scaffoldBackgroundColor: const Color(0xFF111112),
+            cardColor: const Color(0xFF1C1C1E),
             useMaterial3: true,
           ),
-          home: const MainNavigationPage(),
+          home: !_isReady 
+              ? const Scaffold(body: Center(child: CircularProgressIndicator())) 
+              : (_hasLogin ? const MainScreen() : const LoginScreen()),
         );
       },
     );
@@ -681,9 +701,8 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _ipController = TextEditingController();
-  final TextEditingController _keyController = TextEditingController();
-  final TextEditingController _embyUrlController = TextEditingController();
-  final TextEditingController _embyKeyController = TextEditingController();
+  final TextEditingController _userController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
   bool _isSaving = false;
 
   @override
@@ -693,26 +712,21 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    await AppConfig.load();
     setState(() {
-      _ipController.text = prefs.getString('unraid_ip') ?? 'http://192.168.1.100:19009';
-      _keyController.text = prefs.getString('unraid_api_key') ?? '';
-      _embyUrlController.text = prefs.getString('emby_url') ?? 'https://emby.5nas.asia:16666';
-      _embyKeyController.text = prefs.getString('emby_api_key') ?? '675fa80d238d42caaed2f667c6c28b50';
+      _ipController.text = AppConfig.baseDomain;
+      _userController.text = AppConfig.username;
+      _passController.text = AppConfig.password;
     });
   }
 
   Future<void> _saveSettings() async {
     setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('unraid_ip', _ipController.text);
-    await prefs.setString('unraid_api_key', _keyController.text);
-    await prefs.setString('emby_url', _embyUrlController.text);
-    await prefs.setString('emby_api_key', _embyKeyController.text);
+    await AppConfig.save(_ipController.text, _userController.text, _passController.text);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ 配置已保存！'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('✅ 配置已保存！子系统将自动派生新地址。'), backgroundColor: Colors.green),
       );
       setState(() => _isSaving = false);
     }
@@ -730,32 +744,45 @@ class _SettingsViewState extends State<SettingsView> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSettingsGroup(context, '服务器连接配置 (Unraid API)', [
+          _buildSettingsGroup(context, '统一服务器认证 (全局)', [
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Unraid API 地址 (包含端口)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text('主服务器地址', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _ipController,
                     decoration: InputDecoration(
-                      hintText: '例如: http://192.168.1.100:19009',
+                      hintText: '例: https://5nas.asia:16666',
                       filled: true,
                       fillColor: isDark ? Colors.white10 : Colors.grey.shade100,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      prefixIcon: const Icon(Icons.lan),
+                      prefixIcon: const Icon(Icons.dns),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text('API Key (密钥)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text('全局用户名', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: _keyController,
+                    controller: _userController,
+                    decoration: InputDecoration(
+                      hintText: '用于 Glances 与 Emby',
+                      filled: true,
+                      fillColor: isDark ? Colors.white10 : Colors.grey.shade100,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      prefixIcon: const Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('全局密码', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passController,
                     obscureText: true,
                     decoration: InputDecoration(
-                      hintText: '输入您的 Unraid API Key',
+                      hintText: '输入您的密码',
                       filled: true,
                       fillColor: isDark ? Colors.white10 : Colors.grey.shade100,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -767,24 +794,6 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ]),
           
-                    const SizedBox(height: 24),
-          _buildSettingsGroup(context, 'Emby 影音中心配置', [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Emby 服务端地址 (包含端口)', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextField(controller: _embyUrlController, decoration: InputDecoration(hintText: '例: https://emby.5nas.asia:8096', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.movie))),
-                  const SizedBox(height: 16),
-                  const Text('Emby API 密钥', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextField(controller: _embyKeyController, obscureText: true, decoration: InputDecoration(hintText: '输入在 Emby 后台生成的 API Key', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.vpn_key))),
-                ],
-              ),
-            ),
-          ]),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -792,7 +801,7 @@ class _SettingsViewState extends State<SettingsView> {
             child: ElevatedButton.icon(
               onPressed: _isSaving ? null : _saveSettings,
               icon: _isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save),
-              label: const Text('保存所有配置并测试连接', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              label: const Text('保存并重载配置', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF5722),
                 foregroundColor: Colors.white,
@@ -821,6 +830,14 @@ class _SettingsViewState extends State<SettingsView> {
                   }
                 },
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text('退出登录', style: TextStyle(color: Colors.redAccent)),
+              onTap: () async {
+                 await AppConfig.save('', '', '');
+                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              },
             ),
           ]),
         ],

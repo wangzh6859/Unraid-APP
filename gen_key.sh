@@ -1,0 +1,1 @@
+keytool -genkey -v -keystore android/app/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass password123 -keypass password123 -dname "CN=Unraid, OU=App, O=App, L=City, S=State, C=US"

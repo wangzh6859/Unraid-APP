@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/emby_client.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_config.dart';
 
 class EmbyProvider extends ChangeNotifier {
   final EmbyClient _api = EmbyClient();
@@ -8,15 +8,11 @@ class EmbyProvider extends ChangeNotifier {
   bool isLoading = false;
   String errorMsg = '';
   List<dynamic> latestItems = [];
-  String baseUrl = '';
 
   Future<void> fetchMedia() async {
     isLoading = true;
     errorMsg = '';
     notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    baseUrl = prefs.getString('emby_url') ?? '';
 
     final result = await _api.getLatestMedia();
     
@@ -30,6 +26,8 @@ class EmbyProvider extends ChangeNotifier {
           latestItems = data['Items'];
         }
       }
+    } else {
+       errorMsg = '网络无响应';
     }
 
     isLoading = false;
@@ -37,7 +35,7 @@ class EmbyProvider extends ChangeNotifier {
   }
   
   String getImageUrl(String itemId) {
-    if (baseUrl.isEmpty) return '';
-    return '$baseUrl/Items/$itemId/Images/Primary';
+    if (AppConfig.embyUrl.isEmpty) return '';
+    return '${AppConfig.embyUrl}/Items/$itemId/Images/Primary';
   }
 }
