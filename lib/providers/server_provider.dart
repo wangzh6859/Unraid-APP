@@ -12,17 +12,7 @@ class ServerProvider extends ChangeNotifier {
   final PortainerClient _portainer = PortainerClient();
   final UnraidWebClient _unraidNative = UnraidWebClient();
   
-  bool 
-    // Fetch VMs from Native WebGUI
-    final vmResult = await _unraidNative.getVms();
-    if (vmResult != null && vmResult.containsKey('raw')) {
-       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
-       // We will need to parse the raw html/json later.
-    } else if (vmResult != null && vmResult.containsKey('error')) {
-       rawVmResponse = vmResult['error'];
-    }
-
-    isLoading = false;
+  bool isLoading = false;
   bool get isConnected => errorMsg.isEmpty && cpuModel != '未知 CPU';
   String errorMsg = '';
   
@@ -103,6 +93,14 @@ class ServerProvider extends ChangeNotifier {
        rawVmResponse = vmResult['error'];
     }
 
+
+    // Fetch VMs from Native WebGUI
+    final vmResult = await _unraidNative.getVms();
+    if (vmResult != null && vmResult.containsKey('raw')) {
+       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
+    } else if (vmResult != null && vmResult.containsKey('error')) {
+       rawVmResponse = vmResult['error'];
+    }
     isLoading = false;
     notifyListeners();
   }
