@@ -192,16 +192,17 @@ class UnraidNativeParser {
       return decode(noTags).replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
-    void addOne({String? id, required String name, String status = 'unknown', bool? running, String? image}) {
+    void addOne({String? id, required String name, String status = 'unknown', bool? running, bool? autostart, String? image}) {
       final n = decode(name);
       if (n.isEmpty) return;
       if (results.any((e) => (e['name'] ?? '') == n)) return;
-      final isRunning = running ?? status.toLowerCase().contains('up') || status.toLowerCase().contains('running');
+      final isRunning = running ?? status.toLowerCase().contains('up') || status.toLowerCase().contains('running') || status.contains('已启动');
       results.add({
         'id': id,
         'name': n,
         'status': status,
         'running': isRunning,
+        'autostart': autostart,
         'image': image,
       });
     }
@@ -209,27 +210,65 @@ class UnraidNativeParser {
     try {
       final html = payload.split('\u0000').first;
 
-      // Heuristic: each container usually has a row with a name link.
-      final reRow = RegExp('<tr[^>]*>[\s\S]*?</tr>', caseSensitive: false);
+      // Unraid Docker list rows look like:
+      // <tr class='sortable'>
+      //   <td class='ct-name'> ... <span class='appname'>NAME</span> ... <span class='state'>已启动</span> ...
+      //   ... <input class='autostart' container='NAME' checked>
+      // </tr>
+      final reRow = RegExp('<tr[^>]*class=["\"][^"\"]*sortable[^"\"]*["\"][^>]*>[\s\S]*?</tr>', caseSensitive: false);
       for (final m in reRow.allMatches(html)) {
         final tr = m.group(0) ?? '';
+        if (!tr.toLowerCase().contains("ct-name")) continue;
 
-        // Name: first anchor text in row.
-        final nameM = RegExp('<a[^>]*>([^<]{1,120})</a>', caseSensitive: false).firstMatch(tr);
-        final name = nameM?.group(1) ?? '';
-        if (decode(name).isEmpty) continue;
+        // Container id: first <span id='...'> inside the name cell.
+        String? id;
+        final idM = RegExp("<span[^>]*\\bid=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
+        if (idM != null) id = decode(idM.group(1) ?? '');
 
-        // Status: Up/Exited/Paused or Chinese.
+        // Name: prefer <span class='appname'> ... </span>
+        String name = '';
+        final nameM1 = RegExp("<span[^>]*class=['\"][^'\"]*appname[^'\"]*['\"][^>]*>\\s*(?:<a[^>]*>)?([^<]+)", caseSensitive: false).firstMatch(tr);
+        if (nameM1 != null) name = decode(nameM1.group(1) ?? '');
+        if (name.isEmpty) {
+          final nameM2 = RegExp("addDockerContainerContext\\('([^']+)'", caseSensitive: false).firstMatch(tr);
+          if (nameM2 != null) name = decode(nameM2.group(1) ?? '');
+        }
+        if (name.isEmpty) continue;
+
+        // Status text: <span class='state'>已启动</span>
         String status = 'unknown';
-        final statusM = RegExp('(Up[^<\n]{0,80}|Exited[^<\n]{0,80}|Paused[^<\n]{0,80}|运行中|已停止|停止|暂停)', caseSensitive: false).firstMatch(tr);
-        if (statusM != null) status = stripTags(statusM.group(1) ?? 'unknown');
+        final stM = RegExp("<span[^>]*class=['\"][^'\"]*state[^'\"]*['\"][^>]*>([\\s\\S]*?)</span>", caseSensitive: false).firstMatch(tr);
+        if (stM != null) status = stripTags(stM.group(1) ?? 'unknown');
 
+        // Running: icon class started/stopped
         bool? running;
-        final low = status.toLowerCase();
-        if (low.contains('up') || low.contains('running') || status.contains('运行中')) running = true;
-        if (low.contains('exited') || status.contains('已停止') || status == '停止') running = false;
+        final low = tr.toLowerCase();
+        if (low.contains('started') || status.contains('已启动')) running = true;
+        if (low.contains('stopped') || status.contains('已停止')) running = false;
 
-        addOne(name: name, status: status, running: running);
+        // Autostart checkbox
+        bool? autostart;
+        final asM = RegExp("<input[^>]*class=['\"][^'\"]*autostart[^'\"]*['\"][^>]*>", caseSensitive: false).firstMatch(tr);
+        if (asM != null) {
+          final input = asM.group(0) ?? '';
+          autostart = RegExp('checked', caseSensitive: false).hasMatch(input);
+        }
+
+        // Image: inside advanced "来自:" link
+        String? image;
+        final imgM = RegExp("来自:\\s*<a[^>]*>([^<]+)</a>", caseSensitive: false).firstMatch(tr);
+        if (imgM != null) image = decode(imgM.group(1) ?? '');
+
+        addOne(id: id, name: name, status: status, running: running, autostart: autostart, image: image);
+      }
+
+      // Fallback: previous heuristic (very loose)
+      if (results.isEmpty) {
+        final reAnyA = RegExp('<a[^>]*>([^<]{1,120})</a>', caseSensitive: false);
+        for (final mm in reAnyA.allMatches(html)) {
+          final n = decode(mm.group(1) ?? '');
+          if (n.isNotEmpty) addOne(name: n);
+        }
       }
     } catch (_) {
       // ignore
