@@ -58,6 +58,9 @@ class UnraidNativeParser {
           .replaceAll('&lt;', '<')
           .replaceAll('&gt;', '>')
           .replaceAll('&quot;', '"')
+          .replaceAll('&nbsp;', ' ')
+          .replaceAll('&#160;', ' ')
+          .replaceAll('\u00A0', ' ')
           .replaceAll('&#39;', "'")
           .trim();
     }

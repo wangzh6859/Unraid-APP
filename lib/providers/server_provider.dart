@@ -111,6 +111,38 @@ class ServerProvider extends ChangeNotifier {
      return success;
   }
 
+  Future<bool> controlVm(String uuid, String action) async {
+    // action: start | stop | restart | force-stop
+    String apiAction;
+    switch (action) {
+      case 'start':
+        apiAction = 'domain-start';
+        break;
+      case 'stop':
+        apiAction = 'domain-stop';
+        break;
+      case 'restart':
+        apiAction = 'domain-restart';
+        break;
+      case 'force-stop':
+        apiAction = 'domain-force-stop';
+        break;
+      default:
+        apiAction = action;
+    }
+
+    final res = await _unraidNative.vmAction(uuid, apiAction);
+    if (res.containsKey('error')) {
+      rawVmResponse = res['error'];
+      notifyListeners();
+      return false;
+    }
+
+    // refresh after control
+    await fetchStats();
+    return true;
+  }
+
   @override
   void dispose() {
     _timer?.cancel();

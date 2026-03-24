@@ -7,6 +7,11 @@ class UnraidWebClient {
   String getCsrfToken() => _csrfToken;
   String _cookie = '';
 
+  Future<bool> _ensureLogin() async {
+    if (_csrfToken.isNotEmpty && _cookie.isNotEmpty) return true;
+    return await login();
+  }
+
   UnraidWebClient() {
     _dio.options.validateStatus = (status) => true;
     _dio.options.followRedirects = false; // Important for login capture
@@ -59,10 +64,8 @@ class UnraidWebClient {
   }
 
   Future<Map<String, dynamic>?> getDashboardStats() async {
-    if (_csrfToken.isEmpty || _cookie.isEmpty) {
-      bool ok = await login();
-      if (!ok) return {'error': 'Unraid 原生登录失败 (请检查密码是否为 root 密码)'};
-    }
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 原生登录失败 (请检查密码是否为 root 密码)'};
     
     try {
       final response = await _dio.post(
@@ -87,10 +90,8 @@ class UnraidWebClient {
     // Unraid 7.x: /VMs page body does NOT contain the VM list.
     // The table <tbody id="kvm_list"> is filled by XHR:
     // GET /plugins/dynamix.vm.manager/include/VMMachines.php
-    if (_csrfToken.isEmpty || _cookie.isEmpty) {
-      bool ok = await login();
-      if (!ok) return {'error': 'Unraid 登录失败'};
-    }
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 登录失败'};
 
     try {
       String debugInfo = "";
@@ -108,9 +109,6 @@ class UnraidWebClient {
       // 2) Fetch dynamic VM list HTML
       final resList = await _dio.get(
         '${AppConfig.baseDomain}/plugins/dynamix.vm.manager/include/VMMachines.php',
-        queryParameters: {
-          // 'show' corresponds to $.cookie('vmshow') in WebGUI; optional.
-        },
         options: Options(headers: {'Cookie': _cookie}),
       );
       final listBody = resList.data?.toString() ?? '';
@@ -128,6 +126,38 @@ class UnraidWebClient {
       };
     } catch (e) {
       return {'error': '抓取 VM 列表失败: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> vmAction(String uuid, String action) async {
+    // action: domain-start | domain-stop | domain-restart | domain-force-stop
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 登录失败'};
+
+    try {
+      final res = await _dio.post(
+        '${AppConfig.baseDomain}/plugins/dynamix.vm.manager/include/VMajax.php',
+        data: {
+          'csrf_token': _csrfToken,
+          'action': action,
+          'uuid': uuid,
+          'response': 'json',
+        },
+        options: Options(
+          headers: {
+            'Cookie': _cookie,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        ),
+      );
+
+      // Unraid sometimes returns JSON or plain text. We just return debug info.
+      return {
+        'status': res.statusCode ?? 0,
+        'data': res.data,
+      };
+    } catch (e) {
+      return {'error': 'VM 操作失败: $e'};
     }
   }
 }

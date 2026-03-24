@@ -71,6 +71,34 @@ class VmView extends StatelessWidget {
                   ),
                 ),
                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                trailing: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) async {
+                    final uuid = (vm['uuid'] ?? '').toString();
+                    if (uuid.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缺少 uuid，无法控制')));
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在执行: $value ...')));
+                    final ok = await serverProvider.controlVm(uuid, value);
+                    if (ok) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('操作已发送')));
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('操作失败，请看调试信息')));
+                      }
+                    }
+                  },
+                  itemBuilder: (_) => <PopupMenuEntry<String>>[
+                    if (!running) const PopupMenuItem(value: 'start', child: Text('启动')),
+                    if (running) const PopupMenuItem(value: 'stop', child: Text('关机(优雅)')),
+                    if (running) const PopupMenuItem(value: 'restart', child: Text('重启')),
+                    if (running) const PopupMenuItem(value: 'force-stop', child: Text('强制停止')),
+                  ],
+                ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Column(
