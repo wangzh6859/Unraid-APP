@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/portainer_client.dart';
 import '../api/unraid_web_client.dart';
+import '../api/unraid_native_parser.dart';
 
 class ServerProvider extends ChangeNotifier {
   ServerProvider() {
@@ -57,12 +58,21 @@ class ServerProvider extends ChangeNotifier {
       _parseNativeDashboard(dashResult['data']);
     }
 
-    // 2. Fetch VMs from native
+    // 2. Fetch VMs from native (/VMs)
     final vmResult = await _unraidNative.getVms();
     if (vmResult != null && vmResult.containsKey('error')) {
-       rawVmResponse = vmResult['error'];
+      rawVmResponse = vmResult['error'];
+      vms = [];
     } else if (vmResult != null && vmResult.containsKey('data')) {
-       rawVmResponse = vmResult['data'].toString();
+      rawVmResponse = vmResult['data'].toString();
+      if (vmResult.containsKey('raw')) {
+        final rawHtml = vmResult['raw']?.toString() ?? '';
+        final parsed = UnraidNativeParser.parseVms(rawHtml);
+        vms = parsed;
+        if (parsed.isEmpty) {
+          rawVmResponse += "\n\n[解析提示] 未能从 /VMs HTML 解析出 VM 列表（可能是版本差异）。\n请把 /VMs 页面源码片段发我，我再增强解析器。\n";
+        }
+      }
     }
 
     // 3. Keep Portainer for Docker for now (since user didn't ask to remove portainer, just glances. Wait, user said "把docker容器数据来源也改成unraid底层". Ok, I will add native docker parsing later, but for this commit let's just make it connect!)
