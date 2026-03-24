@@ -153,10 +153,13 @@ class ServerProvider extends ChangeNotifier {
     if (name.isNotEmpty) {
       final native = await _unraidNative.dockerAction(name, action);
       if (!native.containsKey('error')) {
-        rawDockerResponse = 'Native Docker action sent: $action ($name)\nHTTP ${native['status']}';
+        rawDockerResponse = 'Native Docker action sent: $action ($name)\nHTTP ${native['status']} (attempt ${native['attempt'] ?? '?'})';
         notifyListeners();
         await fetchStats();
         return true;
+      } else {
+        rawDockerResponse = 'Native Docker action failed: ${native['error']}\nWill fallback to Portainer if possible.';
+        notifyListeners();
       }
     }
 

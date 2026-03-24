@@ -207,31 +207,75 @@ class UnraidWebClient {
     }
   }
 
-  Future<Map<String, dynamic>> dockerAction(String nameOrId, String action) async {
+  Future<Map<String, dynamic>> dockerAction(String containerNameOrId, String action) async {
     // Best-effort native action. If this fails, caller should fallback to Portainer.
     // action: start | stop | restart
     final ok = await _ensureLogin();
     if (!ok) return {'error': 'Unraid 登录失败'};
 
-    try {
-      // This endpoint/param set varies by Unraid version; we try a conservative POST.
-      final res = await _dio.post(
-        '${AppConfig.baseDomain}/plugins/dynamix.docker.manager/include/DockerUpdate.php',
-        data: {
-          'csrf_token': _csrfToken,
-          'action': action,
-          'name': nameOrId,
-          'response': 'json',
-        },
-        options: Options(
-          headers: {
-            'Cookie': _cookie,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        ),
-      );
+    final endpoint = '${AppConfig.baseDomain}/plugins/dynamix.docker.manager/include/DockerUpdate.php';
 
-      return {'status': res.statusCode ?? 0, 'data': res.data};
+    // Different Unraid versions use different parameter names.
+    // We'll try a few common shapes and accept 200/204 as "sent".
+    final attempts = <Map<String, dynamic>>[
+      {
+        'csrf_token': _csrfToken,
+        'action': action,
+        'container': containerNameOrId,
+      },
+      {
+        'csrf_token': _csrfToken,
+        'action': action,
+        'name': containerNameOrId,
+      },
+      {
+        'csrf_token': _csrfToken,
+        'cmd': action,
+        'container': containerNameOrId,
+      },
+      {
+        'csrf_token': _csrfToken,
+        'cmd': action,
+        'name': containerNameOrId,
+      },
+      {
+        'csrf_token': _csrfToken,
+        'action': 'docker-$action',
+        'container': containerNameOrId,
+      },
+    ];
+
+    try {
+      int idx = 0;
+      for (final data in attempts) {
+        idx++;
+        final res = await _dio.post(
+          endpoint,
+          data: data,
+          options: Options(
+            headers: {
+              'Cookie': _cookie,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            validateStatus: (_) => true,
+          ),
+        );
+
+        final code = res.statusCode ?? 0;
+        // Some responses are HTML; some are JSON.
+        final body = res.data;
+
+        if (code == 200 || code == 204) {
+          return {
+            'status': code,
+            'attempt': idx,
+            'sent': true,
+            'data': body,
+          };
+        }
+      }
+
+      return {'error': 'Docker 原生操作未命中可用参数组合', 'status': 0};
     } catch (e) {
       return {'error': 'Docker 操作失败: $e'};
     }
