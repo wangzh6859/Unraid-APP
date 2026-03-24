@@ -9,7 +9,8 @@ class UnraidNativeParser {
 
     try {
       // Look for var model = "Intel(R) Core(TM) i5...";
-      final modelMatch = RegExp(r"var\s+model\s*=\s*[\"']([^\"']+)[\"']").firstMatch(html);
+      // NOTE: Avoid Dart raw strings here because sequences like \" are not escapes in raw strings.
+      final modelMatch = RegExp('var\\s+model\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']').firstMatch(html);
       if (modelMatch != null) cpuModel = modelMatch.group(1)!;
 
       // Unraid 6.12+ might use ini/json payloads in the html or require update.htm polling.
@@ -61,7 +62,7 @@ class UnraidNativeParser {
     try {
       // Pattern A: JS payload like name:"xxx" state:"RUNNING" / status:"running"
       final reJs = RegExp(
-        r"name\s*[:=]\s*[\"']([^\"']+)[\"'][^\n]{0,200}?(?:state|status)\s*[:=]\s*[\"']([^\"']+)[\"']",
+        'name\\s*[:=]\\s*[\"\\\']([^\"\\\']+)[\"\\\'][^\\n]{0,200}?(?:state|status)\\s*[:=]\\s*[\"\\\']([^\"\\\']+)[\"\\\']',
         caseSensitive: false,
       );
       for (final m in reJs.allMatches(html)) {
@@ -69,19 +70,19 @@ class UnraidNativeParser {
       }
 
       // Pattern B: table row with data-name or data-vm
-      final reDataAttr = RegExp(r"data-(?:vm|name)=[\"']([^\"']+)[\"']", caseSensitive: false);
+      final reDataAttr = RegExp('data-(?:vm|name)=[\"\\\']([^\"\\\']+)[\"\\\']', caseSensitive: false);
       for (final m in reDataAttr.allMatches(html)) {
         addVm(m.group(1) ?? '');
       }
 
       // Pattern C: common HTML: <td class="...name...">VMNAME</td>
-      final reTdName = RegExp(r"<td[^>]*class=[\"'][^\"']*(?:name|vmname)[^\"']*[\"'][^>]*>([^<]{1,80})</td>", caseSensitive: false);
+      final reTdName = RegExp('<td[^>]*class=[\"\\\'][^\"\\\']*(?:name|vmname)[^\"\\\']*[\"\\\'][^>]*>([^<]{1,80})</td>', caseSensitive: false);
       for (final m in reTdName.allMatches(html)) {
         addVm(m.group(1) ?? '');
       }
 
       // Pattern D: links: /VMs/<name> or onclick with vm name
-      final reLink = RegExp(r"/VMs\?[^\"']*name=([^&\"']+)", caseSensitive: false);
+      final reLink = RegExp('/VMs\\?[^\"\\\']*name=([^&\"\\\']+)', caseSensitive: false);
       for (final m in reLink.allMatches(html)) {
         addVm(Uri.decodeComponent(m.group(1) ?? ''));
       }
