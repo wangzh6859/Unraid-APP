@@ -92,6 +92,28 @@ class ServerProvider extends ChangeNotifier {
         rawDockerHtmlPreview = rawPayload.length > 8000 ? rawPayload.substring(0, 8000) : rawPayload;
         final parsed = UnraidNativeParser.parseDockerContainers(rawPayload);
         if (parsed.isNotEmpty) {
+          // Fill CPU/MEM from Portainer stats first (actual), then (if available) override with Native stats.
+          for (final c in parsed) {
+            try {
+              final id = (c['id'] ?? '').toString();
+              if (id.isEmpty) continue;
+              final stats = await _portainer.getContainerStats(id);
+              if (stats != null && !stats.containsKey('error')) {
+                c['cpuPercent'] = stats['cpuPercent'];
+                c['memUsageBytes'] = stats['memUsageBytes'];
+                c['memLimitBytes'] = stats['memLimitBytes'];
+              }
+            } catch (_) {}
+          }
+
+          // Optional: try Native docker stats endpoint if present.
+          try {
+            final st = await _unraidNative.getDockerStats();
+            if (st != null && st.containsKey('data')) {
+              // TODO: merge once we know the schema.
+            }
+          } catch (_) {}
+
           dockerContainers = parsed;
           dockerOk = true;
           rawDockerResponse += "\n[解析] Native Docker 容器数量: ${parsed.length}";

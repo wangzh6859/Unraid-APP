@@ -5,6 +5,35 @@ class PortainerClient {
   final Dio _dio = Dio();
   int? endpointId;
 
+  /// Compute CPU% from Docker stats payload.
+  double _calcCpuPercent(Map<String, dynamic> stats) {
+    try {
+      final cpuStats = stats['cpu_stats'] as Map<String, dynamic>?;
+      final precpuStats = stats['precpu_stats'] as Map<String, dynamic>?;
+      if (cpuStats == null || precpuStats == null) return 0.0;
+
+      final cpuUsage = cpuStats['cpu_usage'] as Map<String, dynamic>?;
+      final precpuUsage = precpuStats['cpu_usage'] as Map<String, dynamic>?;
+      if (cpuUsage == null || precpuUsage == null) return 0.0;
+
+      final total = (cpuUsage['total_usage'] as num?)?.toDouble() ?? 0.0;
+      final preTotal = (precpuUsage['total_usage'] as num?)?.toDouble() ?? 0.0;
+      final system = (cpuStats['system_cpu_usage'] as num?)?.toDouble() ?? 0.0;
+      final preSystem = (precpuStats['system_cpu_usage'] as num?)?.toDouble() ?? 0.0;
+
+      final cpuDelta = total - preTotal;
+      final systemDelta = system - preSystem;
+
+      final online = (cpuStats['online_cpus'] as num?)?.toDouble() ??
+          ((cpuUsage['percpu_usage'] is List) ? (cpuUsage['percpu_usage'] as List).length.toDouble() : 1.0);
+
+      if (systemDelta <= 0 || cpuDelta <= 0) return 0.0;
+      return (cpuDelta / systemDelta) * online * 100.0;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
   Future<bool> login() async {
     await AppConfig.load();
     if (AppConfig.baseDomain.isEmpty) return false;
@@ -97,6 +126,39 @@ class PortainerClient {
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getContainerStats(String containerId) async {
+    try {
+      if (endpointId == null) await login();
+      if (endpointId == null) return {'error': 'Portainer 未登录'};
+
+      final url = '${AppConfig.portainerUrl}/api/endpoints/$endpointId/docker/containers/$containerId/stats?stream=false';
+      final response = await _dio.get(
+        url,
+        options: Options(
+          headers: {'Authorization': 'Bearer ${AppConfig.portainerToken}'},
+          validateStatus: (_) => true,
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data is Map) {
+        final stats = Map<String, dynamic>.from(response.data);
+        final memStats = stats['memory_stats'] as Map<String, dynamic>?;
+        final memUsage = (memStats?['usage'] as num?)?.toDouble() ?? 0.0;
+        final memLimit = (memStats?['limit'] as num?)?.toDouble() ?? 0.0;
+
+        return {
+          'cpuPercent': _calcCpuPercent(stats),
+          'memUsageBytes': memUsage,
+          'memLimitBytes': memLimit,
+        };
+      }
+
+      return {'error': 'Portainer stats HTTP ${response.statusCode}'};
+    } catch (e) {
+      return {'error': 'Portainer stats 异常: $e'};
     }
   }
 }

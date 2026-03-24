@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../utils/app_config.dart';
 
@@ -204,6 +205,40 @@ class UnraidWebClient {
       return {'error': '无法获取 Docker 列表（所有候选接口都失败）', 'data': debugInfo};
     } catch (e) {
       return {'error': '抓取 Docker 列表失败: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>?> getDockerStats() async {
+    // Best-effort: some Unraid versions expose a stats endpoint.
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 登录失败'};
+
+    try {
+      final candidates = [
+        '/plugins/dynamix.docker.manager/include/DockerStats.php',
+        '/plugins/dynamix.docker.manager/include/DockerStatus.php',
+      ];
+
+      for (final p in candidates) {
+        final res = await _dio.get(
+          '${AppConfig.baseDomain}$p',
+          options: Options(headers: {'Cookie': _cookie}),
+        );
+        final body = res.data?.toString() ?? '';
+        if (res.statusCode == 200 && body.isNotEmpty) {
+          // If JSON, parse it.
+          final t = body.trimLeft();
+          if (t.startsWith('{') || t.startsWith('[')) {
+            final parsed = jsonDecode(body);
+            return {'path': p, 'data': parsed};
+          }
+          return {'path': p, 'raw': body};
+        }
+      }
+
+      return {'error': '未找到可用的 DockerStats 端点'};
+    } catch (e) {
+      return {'error': 'DockerStats 获取失败: $e'};
     }
   }
 

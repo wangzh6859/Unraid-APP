@@ -1078,11 +1078,18 @@ class _DockerViewState extends State<DockerView> {
           // Portainer list doesn't return live CPU/Mem, so we display Image name or State if cpu/mem is missing
           final hasCpu = container['cpu'] != null;
           final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
+
+          // Native+Portainer merged stats
+          final cpuPercent = (container['cpuPercent'] is num) ? (container['cpuPercent'] as num).toDouble() : null;
+          final memUsageBytes = (container['memUsageBytes'] is num) ? (container['memUsageBytes'] as num).toDouble() : null;
+
           final mem = container['memory']?.containsKey('usage') == true 
               ? (container['memory']['usage'] / 1024 / 1024).toStringAsFixed(1) 
-              : '0.0';
+              : (memUsageBytes != null ? (memUsageBytes / 1024 / 1024).toStringAsFixed(1) : '0.0');
+
+          final displayCpu = cpuPercent ?? ((cpu is num) ? (cpu as num).toDouble() : 0.0);
           
-          final image = container['Image'] ?? '';
+          final image = container['Image'] ?? container['image'] ?? '';
           
           final statusStr = status.toString().toLowerCase();
           final bool isRunning = (container['running'] == true) || statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up') || statusStr.contains('运行');
@@ -1146,7 +1153,7 @@ class _DockerViewState extends State<DockerView> {
                   children: [
                     Icon(Icons.memory, size: 14, color: Colors.blue.shade400),
                     const SizedBox(width: 4),
-                    Text('${cpu.toStringAsFixed(1)}%'),
+                    Text('${displayCpu.toStringAsFixed(1)}%'),
                     const SizedBox(width: 16),
                     Icon(Icons.storage, size: 14, color: Colors.orange.shade400),
                     const SizedBox(width: 4),
