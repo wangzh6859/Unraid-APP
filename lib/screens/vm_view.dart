@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import '../providers/server_provider.dart';
 
 class VmView extends StatelessWidget {
@@ -119,6 +120,21 @@ class VmView extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: serverProvider.rawVmHtmlPreview.isEmpty
+                      ? null
+                      : () async {
+                          await Clipboard.setData(ClipboardData(text: serverProvider.rawVmHtmlPreview));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('已复制 /VMs 源码预览（前 8KB）')),
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: const Text('复制/VMs源码', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),

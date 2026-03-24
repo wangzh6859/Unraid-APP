@@ -31,6 +31,7 @@ class ServerProvider extends ChangeNotifier {
   String rawDockerResponse = '';
   List<dynamic> vms = [];
   String rawVmResponse = '正在执行抓取...';
+  String rawVmHtmlPreview = '';
 
   Timer? _timer;
 
@@ -67,10 +68,13 @@ class ServerProvider extends ChangeNotifier {
       rawVmResponse = vmResult['data'].toString();
       if (vmResult.containsKey('raw')) {
         final rawHtml = vmResult['raw']?.toString() ?? '';
+        // Keep a preview for user-assisted debugging.
+        rawVmHtmlPreview = rawHtml.length > 8000 ? rawHtml.substring(0, 8000) : rawHtml;
+
         final parsed = UnraidNativeParser.parseVms(rawHtml);
         vms = parsed;
         if (parsed.isEmpty) {
-          rawVmResponse += "\n\n[解析提示] 未能从 /VMs HTML 解析出 VM 列表（可能是版本差异）。\n请把 /VMs 页面源码片段发我，我再增强解析器。\n";
+          rawVmResponse += "\n\n[解析提示] 未能从 /VMs HTML 解析出 VM 列表（可能是版本差异）。\n你可以在本页点击【复制/VMs源码(前8KB)】发给我，我来增强解析器。\n";
         }
       }
     }
