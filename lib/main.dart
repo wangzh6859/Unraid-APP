@@ -1162,7 +1162,6 @@ class _DockerViewState extends State<DockerView> {
                   ],
                 ),
               ),
-              ),
               title: Text(
                 name,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
