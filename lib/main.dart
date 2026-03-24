@@ -958,7 +958,7 @@ IconData _getDockerIcon(String? name) {
     if (name.contains('homeassistant') || name.contains('ha')) return Icons.home;
     if (name.contains('openclaw') || name.contains('bot') || name.contains('ai')) return Icons.smart_toy;
     if (name.contains('portainer')) return Icons.dashboard;
-    return _getDockerIcon(name);
+    return Icons.dns;
   }
 
 class _DockerViewState extends State<DockerView> {
@@ -1110,38 +1110,58 @@ class _DockerViewState extends State<DockerView> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: Container(
+              leading: SizedBox(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Builder(
-                  builder: (_) {
-                    try {
-                      final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
-                      if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
-                        final url = '${AppConfig.baseDomain}$iconPath';
-                        return ClipOval(
-                          child: Image.network(
-                            url,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(
-                              isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
-                              color: isRunning ? Colors.green : Colors.grey,
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (_) {}
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Builder(
+                        builder: (_) {
+                          try {
+                            final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
+                            if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
+                              final url = '${AppConfig.baseDomain}$iconPath';
+                              return ClipOval(
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                                    color: isRunning ? Colors.green : Colors.grey,
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (_) {}
 
-                    return Icon(
-                      isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
-                      color: isRunning ? Colors.green : Colors.grey,
-                    );
-                  },
+                          return Icon(
+                            isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                            color: isRunning ? Colors.green : Colors.grey,
+                          );
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isRunning ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
               ),
               title: Text(
                 name,
