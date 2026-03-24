@@ -192,7 +192,7 @@ class UnraidNativeParser {
       return decode(noTags).replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
-    void addOne({String? id, required String name, String status = 'unknown', bool? running, bool? autostart, String? image, String? template, String? hash}) {
+    void addOne({String? id, required String name, String status = 'unknown', bool? running, bool? autostart, String? image, String? template, String? hash, String? iconPath}) {
       final n = decode(name);
       if (n.isEmpty) return;
       if (results.any((e) => (e['name'] ?? '') == n)) return;
@@ -206,6 +206,7 @@ class UnraidNativeParser {
         'image': image,
         'template': template,
         'hash': hash,
+        'iconPath': iconPath,
       });
     }
 
@@ -226,6 +227,14 @@ class UnraidNativeParser {
         String? id;
         final idM = RegExp("<span[^>]*\\bid=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
         if (idM != null) id = decode(idM.group(1) ?? '');
+
+        // Icon path: <img src='/state/plugins/...png?...'>
+        String? iconPath;
+        final iconM = RegExp("<img[^>]*\\bsrc=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
+        if (iconM != null) {
+          final p = decode(iconM.group(1) ?? '');
+          if (p.startsWith('/')) iconPath = p;
+        }
 
         // Name: authoritative source is the autostart input: container='NAME'
         String name = '';
@@ -280,7 +289,7 @@ class UnraidNativeParser {
         final imgM = RegExp("来自:\\s*<a[^>]*>([^<]+)</a>", caseSensitive: false).firstMatch(tr);
         if (imgM != null) image = decode(imgM.group(1) ?? '');
 
-        addOne(id: id, name: name, status: status, running: running, autostart: autostart, image: image, template: template, hash: hash);
+        addOne(id: id, name: name, status: status, running: running, autostart: autostart, image: image, template: template, hash: hash, iconPath: iconPath);
       }
 
       // Fallback: previous heuristic (very loose)

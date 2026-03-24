@@ -1110,9 +1110,30 @@ class _DockerViewState extends State<DockerView> {
                   color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
-                  color: isRunning ? Colors.green : Colors.grey,
+                child: Builder(
+                  builder: (_) {
+                    try {
+                      final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
+                      if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
+                        final url = '${AppConfig.baseDomain}$iconPath';
+                        return ClipOval(
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Icon(
+                              isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                              color: isRunning ? Colors.green : Colors.grey,
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (_) {}
+
+                    return Icon(
+                      isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                      color: isRunning ? Colors.green : Colors.grey,
+                    );
+                  },
                 ),
               ),
               title: Text(

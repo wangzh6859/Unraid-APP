@@ -208,11 +208,56 @@ class UnraidWebClient {
   }
 
   Future<Map<String, dynamic>> dockerAction({required String name, String? id, String? hash, String? template, required String action}) async {
-    // Best-effort native action. If this fails, caller should fallback to Portainer.
-    // action: start | stop | restart
+    // Native docker control via StartCommand.php is the most reliable, because it's what WebGUI uses
+    // to run docker commands in the background.
+    // We'll attempt this first, then fallback to DockerUpdate.php probing.
     final ok = await _ensureLogin();
     if (!ok) return {'error': 'Unraid 登录失败'};
 
+    String dockerCmd;
+    switch (action) {
+      case 'start':
+        dockerCmd = 'docker start ${name}';
+        break;
+      case 'stop':
+        dockerCmd = 'docker stop ${name}';
+        break;
+      case 'restart':
+        dockerCmd = 'docker restart ${name}';
+        break;
+      default:
+        dockerCmd = 'docker ${action} ${name}';
+    }
+
+    try {
+      // Try StartCommand first.
+      final res = await _dio.post(
+        '${AppConfig.baseDomain}/webGui/include/StartCommand.php',
+        data: {
+          'csrf_token': _csrfToken,
+          'cmd': dockerCmd,
+          'start': 1,
+        },
+        options: Options(
+          headers: {
+            'Cookie': _cookie,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          validateStatus: (_) => true,
+        ),
+      );
+
+      // WebGUI returns pid as plain text.
+      final bodyStr = res.data?.toString().trim() ?? '';
+      final pid = int.tryParse(bodyStr) ?? 0;
+      if ((res.statusCode == 200) && pid > 0) {
+        return {'status': 200, 'sent': true, 'method': 'StartCommand', 'pid': pid, 'cmd': dockerCmd};
+      }
+    } catch (_) {
+      // ignore and fallback
+    }
+
+    // Fallback: probe DockerUpdate.php (kept for compatibility).
     final endpoint = '${AppConfig.baseDomain}/plugins/dynamix.docker.manager/include/DockerUpdate.php';
 
     bool looksOk(dynamic body) {
@@ -222,7 +267,6 @@ class UnraidWebClient {
       return true;
     }
 
-    // Some Unraid builds expect different action names.
     final actionAliases = <String>[action, 'container-$action', 'docker-$action', '${action}Container'];
 
     List<Map<String, dynamic>> buildAttempts() {
@@ -277,6 +321,7 @@ class UnraidWebClient {
             'status': code,
             'attempt': i + 1,
             'sent': true,
+            'method': 'DockerUpdate',
             'used': data,
             'data': body,
           };
@@ -293,6 +338,7 @@ class UnraidWebClient {
     }
   }
 }
+
 
 
 
