@@ -215,7 +215,7 @@ class UnraidNativeParser {
       //   <td class='ct-name'> ... <span class='appname'>NAME</span> ... <span class='state'>已启动</span> ...
       //   ... <input class='autostart' container='NAME' checked>
       // </tr>
-      final reRow = RegExp('<tr[^>]*class=["\"][^"\"]*sortable[^"\"]*["\"][^>]*>[\s\S]*?</tr>', caseSensitive: false);
+      final reRow = RegExp("<tr[^>]*class=['\"][^'\"]*sortable[^'\"]*['\"][^>]*>[\\s\\S]*?</tr>", caseSensitive: false);
       for (final m in reRow.allMatches(html)) {
         final tr = m.group(0) ?? '';
         if (!tr.toLowerCase().contains("ct-name")) continue;
