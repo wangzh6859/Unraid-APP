@@ -81,9 +81,15 @@ class UnraidNativeParser {
       // Split off the HTML part (before the NUL separator), if present.
       final html = payload.split('\u0000').first;
 
-      // Iterate per <tr>...</tr> block; VMMachines.php returns VM rows + possible child rows.
-      final reTr = RegExp('<tr[^>]*>[\s\S]*?</tr>', caseSensitive: false);
-      for (final trM in reTr.allMatches(html)) {
+      // VMMachines.php returns:
+      //   <tr parent-id='X' class='sortable'> ... </tr>
+      //   <tr child-id='X' id='name-X' style='display:none'> ... nested tables ... </tr>
+      // We should ONLY parse the parent rows; child rows contain nested <tr>/<td> which break naive parsing.
+      final reParentTr = RegExp(
+        '<tr[^>]*\bparent-id\s*=\s*["\"][^"\"]+["\"][^>]*>[\s\S]*?</tr>',
+        caseSensitive: false,
+      );
+      for (final trM in reParentTr.allMatches(html)) {
         final tr = trM.group(0) ?? '';
 
         // Must contain vm-name cell.
@@ -140,10 +146,13 @@ class UnraidNativeParser {
         }
       }
 
-      // If still empty, fallback: any anchor inside a row.
+      // If still empty, fallback: parse any row that contains vm-name (loose).
       if (results.isEmpty) {
-        final reAnyA = RegExp('<tr[^>]*>[\s\S]*?<a[^>]*>([^<]{1,80})</a>[\s\S]*?</tr>', caseSensitive: false);
-        for (final m in reAnyA.allMatches(html)) {
+        final reLoose = RegExp(
+          '<tr[^>]*>[\s\S]*?<td[^>]*class=["\\\'][^"\\\']*vm-name[^"\\\']*["\\\'][^>]*>[\s\S]*?<a[^>]*>([^<]{1,80})</a>[\s\S]*?</tr>',
+          caseSensitive: false,
+        );
+        for (final m in reLoose.allMatches(html)) {
           final n = decode(m.group(1) ?? '');
           if (n.isNotEmpty) results.add({'name': n, 'status': 'unknown', 'running': false});
         }
