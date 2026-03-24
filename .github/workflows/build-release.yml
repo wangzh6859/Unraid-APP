@@ -1,13 +1,13 @@
 name: Build and Release APK
 
 on:
-  # 1) Manual trigger from GitHub Actions UI
+  # Manual trigger from GitHub Actions UI
   workflow_dispatch:
 
-  # 2) Release trigger: push a version tag like v2.1.4
+  # Auto publish on every push to main (build + create/update Release)
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -47,14 +47,15 @@ jobs:
           echo "version_line=$VERSION_LINE" >> $GITHUB_OUTPUT
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release (attach APK)
-        uses: softprops/action-gh-release@v2
+      - name: Create/Update GitHub Release (attach APK)
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.ver.outputs.version_name) }}
+          tag: v${{ steps.ver.outputs.version_name }}
           name: Unraid-APP v${{ steps.ver.outputs.version_name }}
-          draft: false
           prerelease: true
-          generate_release_notes: true
-          files: build/app/outputs/flutter-apk/app-release.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
+          artifacts: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
