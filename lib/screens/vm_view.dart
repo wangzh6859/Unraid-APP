@@ -15,7 +15,10 @@ class VmView extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-             Text('Token状态: ${serverProvider.errorMsg}', style: const TextStyle(color: Colors.red)),
+             Text(
+               '连接状态: ${serverProvider.errorMsg.isEmpty ? 'OK' : serverProvider.errorMsg}',
+               style: TextStyle(color: serverProvider.errorMsg.isEmpty ? Colors.green : Colors.red),
+             ),
              const SizedBox(height: 10),
              Text(serverProvider.rawVmResponse.isEmpty ? "等待数据返回中..." : serverProvider.rawVmResponse, 
                style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
