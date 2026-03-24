@@ -138,6 +138,7 @@ class ServerProvider extends ChangeNotifier {
     // Prefer Unraid native by name if available; fallback to Portainer by Id.
     String name = '';
     String portainerId = '';
+    String nativeId = '';
 
     try {
       if (container is Map) {
@@ -145,35 +146,106 @@ class ServerProvider extends ChangeNotifier {
         if (container['Names'] != null && container['Names'] is List && container['Names'].isNotEmpty) {
           name = container['Names'][0].toString().replaceAll('/', '');
         }
+        // Native parser uses 'id'; Portainer uses 'Id'
+        nativeId = (container['id'] ?? container['Id'] ?? '').toString();
         portainerId = (container['Id'] ?? container['id'] ?? '').toString();
       }
     } catch (_) {}
 
-    // Try native action first.
+    bool? beforeRunning;
+    try {
+      if (container is Map) {
+        if (container['running'] is bool) beforeRunning = container['running'] as bool;
+        if (beforeRunning == null) {
+          final s = (container['status'] ?? container['Status'] ?? container['State'] ?? '').toString().toLowerCase();
+          if (s.contains('up') || s.contains('running') || s.contains('healthy') || s.contains('运行')) beforeRunning = true;
+          if (s.contains('exited') || s.contains('stopped') || s.contains('停止')) beforeRunning = false;
+        }
+      }
+    } catch (_) {}
+
+    bool actionExpectsStop = action == 'stop' || action == 'force-stop';
+    bool actionExpectsStart = action == 'start';
+
+    // 1) Try native action first, but DO NOT trust HTTP 200 alone.
+    bool nativeSent = false;
     if (name.isNotEmpty) {
-      final nativeId = (container is Map ? (container['id'] ?? container['Id'] ?? '') : '').toString();
       final nativeHash = (container is Map ? (container['hash'] ?? '') : '').toString();
       final nativeTpl = (container is Map ? (container['template'] ?? '') : '').toString();
 
       final native = await _unraidNative.dockerAction(name: name, id: nativeId, hash: nativeHash, template: nativeTpl, action: action);
       if (!native.containsKey('error')) {
-        rawDockerResponse = 'Native Docker action sent: $action ($name)\nHTTP ${native['status']} (attempt ${native['attempt'] ?? '?'})';
+        nativeSent = true;
+        rawDockerResponse = 'Native Docker 已发送: $action ($name)\nHTTP ${native['status']} (attempt ${native['attempt'] ?? '?'})\n正在验证状态变化...';
         notifyListeners();
-        await fetchStats();
-        return true;
+
+        // Verify by polling docker list (1s x10).
+        for (int i = 1; i <= 10; i++) {
+          await Future.delayed(const Duration(seconds: 1));
+
+          final nativeDocker = await _unraidNative.getDockerContainers();
+          if (nativeDocker != null && nativeDocker.containsKey('raw')) {
+            final rawPayload = nativeDocker['raw']?.toString() ?? '';
+            rawDockerHtmlPreview = rawPayload.length > 8000 ? rawPayload.substring(0, 8000) : rawPayload;
+            final parsed = UnraidNativeParser.parseDockerContainers(rawPayload);
+            if (parsed.isNotEmpty) {
+              dockerContainers = parsed;
+              // Find current container by id/name.
+              final found = parsed.where((c) {
+                try {
+                  final cid = (c['id'] ?? '').toString();
+                  final cn = (c['name'] ?? '').toString();
+                  if (nativeId.isNotEmpty && cid == nativeId) return true;
+                  return name.isNotEmpty && cn == name;
+                } catch (_) {
+                  return false;
+                }
+              }).toList();
+
+              if (found.isNotEmpty) {
+                final afterRunning = found.first['running'] == true;
+                rawDockerResponse = 'Native Docker 已发送: $action ($name)\n验证中... $i/10\n状态: ${afterRunning ? '运行中' : '已停止'}';
+                notifyListeners();
+
+                // Determine expected change.
+                if (beforeRunning != null) {
+                  if (actionExpectsStop && beforeRunning == true && afterRunning == false) {
+                    notifyListeners();
+                    return true;
+                  }
+                  if (actionExpectsStart && beforeRunning == false && afterRunning == true) {
+                    notifyListeners();
+                    return true;
+                  }
+                } else {
+                  // If we don't know before state, accept stop/start based on action.
+                  if (actionExpectsStop && afterRunning == false) return true;
+                  if (actionExpectsStart && afterRunning == true) return true;
+                }
+              }
+            }
+          }
+        }
+
+        // If we got here, native was "sent" but did not change state.
+        rawDockerResponse = 'Native Docker 显示已发送，但状态未变化，将回退 Portainer（如可用）';
+        notifyListeners();
       } else {
-        rawDockerResponse = 'Native Docker action failed: ${native['error']}\n${native['debug'] ?? ''}\nWill fallback to Portainer if possible.';
+        rawDockerResponse = 'Native Docker 失败: ${native['error']}\n${native['debug'] ?? ''}\n将回退 Portainer（如可用）';
         notifyListeners();
       }
     }
 
-    // Fallback to Portainer if we have container id.
+    // 2) Fallback to Portainer if we have container id.
     if (portainerId.isNotEmpty) {
       final ok = await _portainer.containerAction(portainerId, action);
       if (ok) {
-        rawDockerResponse = 'Fallback Portainer action ok: $action ($portainerId)';
+        rawDockerResponse = 'Portainer 操作成功: $action ($portainerId)';
         notifyListeners();
         await fetchStats();
+      } else {
+        rawDockerResponse = (nativeSent ? rawDockerResponse + '\n' : '') + 'Portainer 操作也失败: $action ($portainerId)';
+        notifyListeners();
       }
       return ok;
     }
