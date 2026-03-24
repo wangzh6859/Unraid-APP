@@ -225,15 +225,25 @@ class UnraidNativeParser {
         final idM = RegExp("<span[^>]*\\bid=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
         if (idM != null) id = decode(idM.group(1) ?? '');
 
-        // Name: prefer <span class='appname'> ... </span>
+        // Name: authoritative source is the autostart input: container='NAME'
         String name = '';
-        final nameM1 = RegExp("<span[^>]*class=['\"][^'\"]*appname[^'\"]*['\"][^>]*>\\s*(?:<a[^>]*>)?([^<]+)", caseSensitive: false).firstMatch(tr);
-        if (nameM1 != null) name = decode(nameM1.group(1) ?? '');
+        final containerAttrM = RegExp("<input[^>]*class=['\"][^'\"]*autostart[^'\"]*['\"][^>]*\\bcontainer=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
+        if (containerAttrM != null) name = decode(containerAttrM.group(1) ?? '');
+
+        // Fallback 1: <span class='appname'> ... </span> (strip tags inside)
+        if (name.isEmpty) {
+          final appSpanM = RegExp("<span[^>]*class=['\"][^'\"]*appname[^'\"]*['\"][^>]*>([\\s\\S]*?)</span>", caseSensitive: false).firstMatch(tr);
+          if (appSpanM != null) name = stripTags(appSpanM.group(1) ?? '');
+        }
+
+        // Fallback 2: addDockerContainerContext('NAME', ...)
         if (name.isEmpty) {
           final nameM2 = RegExp("addDockerContainerContext\\('([^']+)'", caseSensitive: false).firstMatch(tr);
           if (nameM2 != null) name = decode(nameM2.group(1) ?? '');
         }
-        if (name.isEmpty) continue;
+
+        // Last guard: if we still somehow grabbed an image-like name (contains '/'), ignore and continue.
+        if (name.isEmpty || name.contains('/')) continue;
 
         // Status text: <span class='state'>已启动</span>
         String status = 'unknown';
