@@ -207,7 +207,7 @@ class UnraidWebClient {
     }
   }
 
-  Future<Map<String, dynamic>> dockerAction({required String name, String? id, required String action}) async {
+  Future<Map<String, dynamic>> dockerAction({required String name, String? id, String? hash, String? template, required String action}) async {
     // Best-effort native action. If this fails, caller should fallback to Portainer.
     // action: start | stop | restart
     final ok = await _ensureLogin();
@@ -222,56 +222,39 @@ class UnraidWebClient {
       return true;
     }
 
-    // Different Unraid versions use different parameter names.
-    // We'll try a few common shapes. Some return HTTP 200 even on error, so we also inspect body.
-    final attempts = <Map<String, dynamic>>[
-      {
-        'csrf_token': _csrfToken,
-        'action': action,
-        'container': name,
-      },
-      {
-        'csrf_token': _csrfToken,
-        'action': action,
-        'name': name,
-      },
-      if (id != null && id.isNotEmpty)
-        {
-          'csrf_token': _csrfToken,
-          'action': action,
-          'id': id,
-          'container': name,
-        },
-      if (id != null && id.isNotEmpty)
-        {
-          'csrf_token': _csrfToken,
-          'action': action,
-          'ct': id,
-          'container': name,
-        },
-      {
-        'csrf_token': _csrfToken,
-        'cmd': action,
-        'container': name,
-      },
-      {
-        'csrf_token': _csrfToken,
-        'cmd': action,
-        'name': name,
-      },
-      {
-        'csrf_token': _csrfToken,
-        'action': 'docker-$action',
-        'container': name,
-      },
-    ];
+    // Some Unraid builds expect different action names.
+    final actionAliases = <String>[action, 'container-$action', 'docker-$action', '${action}Container'];
+
+    List<Map<String, dynamic>> buildAttempts() {
+      final out = <Map<String, dynamic>>[];
+      for (final a in actionAliases) {
+        out.add({'csrf_token': _csrfToken, 'action': a, 'container': name});
+        out.add({'csrf_token': _csrfToken, 'action': a, 'name': name});
+        out.add({'csrf_token': _csrfToken, 'cmd': a, 'container': name});
+        out.add({'csrf_token': _csrfToken, 'cmd': a, 'name': name});
+
+        if (id != null && id.isNotEmpty) {
+          out.add({'csrf_token': _csrfToken, 'action': a, 'id': id, 'container': name});
+          out.add({'csrf_token': _csrfToken, 'action': a, 'ct': id, 'container': name});
+        }
+        if (hash != null && hash.isNotEmpty) {
+          out.add({'csrf_token': _csrfToken, 'action': a, 'hash': hash, 'container': name});
+          out.add({'csrf_token': _csrfToken, 'action': a, 'ct': hash, 'container': name});
+        }
+        if (template != null && template.isNotEmpty) {
+          out.add({'csrf_token': _csrfToken, 'action': a, 'xml': template, 'container': name});
+          out.add({'csrf_token': _csrfToken, 'action': a, 'template': template, 'container': name});
+        }
+      }
+      return out;
+    }
 
     try {
-      int idx = 0;
-      Map<String, dynamic>? last;
+      final attempts = buildAttempts();
+      final debug = <String>[];
 
-      for (final data in attempts) {
-        idx++;
+      for (int i = 0; i < attempts.length; i++) {
+        final data = attempts[i];
         final res = await _dio.post(
           endpoint,
           data: data,
@@ -286,20 +269,24 @@ class UnraidWebClient {
 
         final code = res.statusCode ?? 0;
         final body = res.data;
-        last = {'status': code, 'attempt': idx, 'data': body};
+        final snippet = (body?.toString() ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+        debug.add('#${i + 1} HTTP $code data=${snippet.substring(0, snippet.length > 120 ? 120 : snippet.length)}');
 
         if ((code == 200 || code == 204) && looksOk(body)) {
           return {
-            ...last,
+            'status': code,
+            'attempt': i + 1,
             'sent': true,
             'used': data,
+            'data': body,
           };
         }
       }
 
       return {
         'error': 'Docker 原生操作未命中可用参数组合或返回包含错误信息',
-        ...?last,
+        'status': 0,
+        'debug': debug.take(12).join('\n'),
       };
     } catch (e) {
       return {'error': 'Docker 操作失败: $e'};
