@@ -39,7 +39,16 @@ class UnraidNativeParser {
   /// which returns: "<tr ...>...</tr>...\0<script>...</script>"
   ///
   /// Output schema (list item):
-  /// { name: String, status: String, running: bool }
+  /// {
+  ///   name: String,
+  ///   uuid: String?,
+  ///   status: String,
+  ///   running: bool,
+  ///   cpu: String?,
+  ///   mem: String?,
+  ///   ip: String?,
+  ///   autostart: bool?,
+  /// }
   static List<Map<String, dynamic>> parseVms(String payload) {
     final results = <Map<String, dynamic>>[];
 
@@ -53,50 +62,90 @@ class UnraidNativeParser {
           .trim();
     }
 
-    void addVm(String name, {String status = 'unknown', bool? running}) {
+    String stripTags(String s) {
+      // Remove tags and condense whitespace.
+      final noTags = s.replaceAll(RegExp('<[^>]+>'), ' ');
+      return decode(noTags).replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+
+    Map<String, dynamic> ensureVm(String name) {
       final n = decode(name);
-      if (n.isEmpty) return;
-      if (results.any((e) => (e['name'] ?? '') == n)) return;
-      final isRunning = running ?? status.toLowerCase().contains('running') || status.toLowerCase().contains('started');
-      results.add({'name': n, 'status': status, 'running': isRunning});
+      final existing = results.where((e) => (e['name'] ?? '') == n).toList();
+      if (existing.isNotEmpty) return existing.first;
+      final vm = <String, dynamic>{'name': n, 'status': 'unknown', 'running': false};
+      results.add(vm);
+      return vm;
     }
 
     try {
       // Split off the HTML part (before the NUL separator), if present.
       final html = payload.split('\u0000').first;
 
-      // Primary pattern: <td class="vm-name"> ... <a>VMNAME</a>
-      final reName = RegExp(
-        '<td[^>]*class=["\\\'][^"\\\']*vm-name[^"\\\']*["\\\'][^>]*>[\\s\\S]*?<a[^>]*>([^<]+)</a>',
-        caseSensitive: false,
-      );
-      final matches = reName.allMatches(html).toList();
-      for (final m in matches) {
-        final name = m.group(1) ?? '';
-        // Try to infer running/stopped from nearby markup.
-        final start = (m.start - 250) < 0 ? 0 : (m.start - 250);
-        final end = (m.end + 250) > html.length ? html.length : (m.end + 250);
-        final window = html.substring(start, end).toLowerCase();
+      // Iterate per <tr>...</tr> block; VMMachines.php returns VM rows + possible child rows.
+      final reTr = RegExp('<tr[^>]*>[\s\S]*?</tr>', caseSensitive: false);
+      for (final trM in reTr.allMatches(html)) {
+        final tr = trM.group(0) ?? '';
 
-        bool? running;
-        String status = 'unknown';
-        if (window.contains('fa-play-circle') || window.contains('running') || window.contains('started')) {
-          running = true;
-          status = 'running';
+        // Must contain vm-name cell.
+        if (!tr.toLowerCase().contains('vm-name')) continue;
+
+        // Name.
+        final nameM = RegExp(
+          '<td[^>]*class=["\\\'][^"\\\']*vm-name[^"\\\']*["\\\'][^>]*>[\s\S]*?<a[^>]*>([^<]+)</a>',
+          caseSensitive: false,
+        ).firstMatch(tr);
+        final name = nameM?.group(1) ?? '';
+        if (decode(name).isEmpty) continue;
+
+        final vm = ensureVm(name);
+
+        // UUID often appears on elements as uuid="...".
+        final uuidM = RegExp('uuid=["\\\']([^"\\\']+)["\\\']', caseSensitive: false).firstMatch(tr);
+        if (uuidM != null) vm['uuid'] = uuidM.group(1);
+
+        // Status / running inference: icons used by Unraid.
+        final trLower = tr.toLowerCase();
+        if (trLower.contains('fa-play-circle') || trLower.contains('running') || trLower.contains('started')) {
+          vm['running'] = true;
+          vm['status'] = 'running';
         }
-        if (window.contains('fa-stop-circle') || window.contains('stopped') || window.contains('shutdown') || window.contains('shut down')) {
-          running = false;
-          status = 'stopped';
+        if (trLower.contains('fa-stop-circle') || trLower.contains('stopped') || trLower.contains('shutdown') || trLower.contains('shut down')) {
+          vm['running'] = false;
+          vm['status'] = 'stopped';
         }
 
-        addVm(name, status: status, running: running);
+        // Collect all <td> cells text to map columns (best effort).
+        final tds = RegExp('<td[^>]*>([\s\S]*?)</td>', caseSensitive: false)
+            .allMatches(tr)
+            .map((m) => stripTags(m.group(1) ?? ''))
+            .where((s) => s.isNotEmpty)
+            .toList();
+
+        // Heuristic mapping by table header order in your /VMs page:
+        // 名称 | 描述 | CPU | 内存 | 虚拟硬盘/光驱 | 图形 | IP 地址 | 自动启动
+        // Name cell is first; CPU is around index 2; mem around index 3; ip around index 6.
+        if (tds.length >= 4) {
+          if (tds.length > 2) vm['cpu'] = tds[2];
+          if (tds.length > 3) vm['mem'] = tds[3];
+        }
+        if (tds.length >= 7) {
+          vm['ip'] = tds[6];
+        }
+
+        // Autostart: search for class="autostart" input checked.
+        final autoM = RegExp('<input[^>]*class=["\\\'][^"\\\']*autostart[^"\\\']*["\\\'][^>]*>', caseSensitive: false).firstMatch(tr);
+        if (autoM != null) {
+          final input = autoM.group(0) ?? '';
+          vm['autostart'] = RegExp('checked', caseSensitive: false).hasMatch(input);
+        }
       }
 
-      // Fallback: any anchor inside a row that looks like VM config link
+      // If still empty, fallback: any anchor inside a row.
       if (results.isEmpty) {
-        final reAnyA = RegExp('<tr[^>]*>[\\s\\S]*?<a[^>]*>([^<]{1,80})</a>[\\s\\S]*?</tr>', caseSensitive: false);
+        final reAnyA = RegExp('<tr[^>]*>[\s\S]*?<a[^>]*>([^<]{1,80})</a>[\s\S]*?</tr>', caseSensitive: false);
         for (final m in reAnyA.allMatches(html)) {
-          addVm(m.group(1) ?? '');
+          final n = decode(m.group(1) ?? '');
+          if (n.isNotEmpty) results.add({'name': n, 'status': 'unknown', 'running': false});
         }
       }
     } catch (_) {
@@ -106,4 +155,5 @@ class UnraidNativeParser {
     return results;
   }
 }
+
 

@@ -6,6 +6,17 @@ import '../providers/server_provider.dart';
 class VmView extends StatelessWidget {
   const VmView({super.key});
 
+  Widget _miniInfo(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color.withOpacity(0.9)),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontSize: 12, color: color.withOpacity(0.95))),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final serverProvider = Provider.of<ServerProvider>(context);
@@ -26,6 +37,10 @@ class VmView extends StatelessWidget {
             final name = (vm['name'] ?? '未知虚拟机').toString();
             final status = (vm['status'] ?? 'unknown').toString();
             final running = (vm['running'] == true);
+            final cpu = (vm['cpu'] ?? '').toString();
+            final mem = (vm['mem'] ?? '').toString();
+            final ip = (vm['ip'] ?? '').toString();
+            final autostart = vm['autostart'];
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -58,19 +73,36 @@ class VmView extends StatelessWidget {
                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8.0),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, size: 14, color: (running ? Colors.green : Colors.grey).withOpacity(0.9)),
-                      const SizedBox(width: 6),
-                      Text(running ? '运行中' : '已停止'),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          status,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 14, color: (running ? Colors.green : Colors.grey).withOpacity(0.9)),
+                          const SizedBox(width: 6),
+                          Text(running ? '运行中' : '已停止'),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              status,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        children: [
+                          if (cpu.isNotEmpty) _miniInfo(Icons.memory, cpu, Colors.blue),
+                          if (mem.isNotEmpty) _miniInfo(Icons.storage, mem, Colors.orange),
+                          if (ip.isNotEmpty) _miniInfo(Icons.lan, ip, Colors.teal),
+                          if (autostart != null)
+                            _miniInfo(Icons.power_settings_new, autostart == true ? '自启:开' : '自启:关', autostart == true ? Colors.green : Colors.grey),
+                        ],
                       ),
                     ],
                   ),
@@ -91,9 +123,12 @@ class VmView extends StatelessWidget {
       );
     }
 
+    final total = serverProvider.vms.length;
+    final runningCount = serverProvider.vms.where((e) => e['running'] == true).length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('虚拟机'),
+        title: Text(total > 0 ? '虚拟机（$runningCount/$total 运行中）' : '虚拟机'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
