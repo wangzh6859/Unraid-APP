@@ -138,8 +138,40 @@ class ServerProvider extends ChangeNotifier {
       return false;
     }
 
-    // refresh after control
-    await fetchStats();
+    // Short-poll VM list to reflect state change quickly (1s interval).
+    // This avoids waiting for the global 5s timer.
+    final before = vms.where((e) => (e['uuid'] ?? '') == uuid).toList();
+    final beforeRunning = before.isNotEmpty ? (before.first['running'] == true) : null;
+
+    for (int i = 1; i <= 10; i++) {
+      rawVmResponse = '已发送操作: $action (uuid=$uuid)\n正在刷新状态... $i/10';
+      notifyListeners();
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      final vmResult = await _unraidNative.getVms();
+      if (vmResult != null && vmResult.containsKey('data')) {
+        rawVmResponse = vmResult['data'].toString();
+        if (vmResult.containsKey('raw')) {
+          final rawPayload = vmResult['raw']?.toString() ?? '';
+          rawVmHtmlPreview = rawPayload.length > 8000 ? rawPayload.substring(0, 8000) : rawPayload;
+          final parsed = UnraidNativeParser.parseVms(rawPayload);
+          vms = parsed;
+
+          final after = vms.where((e) => (e['uuid'] ?? '') == uuid).toList();
+          final afterRunning = after.isNotEmpty ? (after.first['running'] == true) : null;
+
+          // If we can observe a change, stop polling early.
+          if (beforeRunning != null && afterRunning != null && beforeRunning != afterRunning) {
+            break;
+          }
+
+          // For restart, we may not see running flip; just continue until list updates.
+        }
+      }
+    }
+
+    notifyListeners();
     return true;
   }
 
