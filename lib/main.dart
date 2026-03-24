@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'providers/server_provider.dart';
 import 'providers/emby_provider.dart';
 
@@ -1014,7 +1015,13 @@ class _DockerViewState extends State<DockerView> {
         return Center(child: Text(server.errorMsg, style: const TextStyle(color: Colors.red)));
       }
       if (server.dockerContainers.isEmpty) {
-        return SingleChildScrollView(padding: const EdgeInsets.all(24), child: SelectableText('监控模块返回信息：\n\n${server.rawDockerResponse}', style: TextStyle(color: Colors.grey.shade600)));
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: SelectableText(
+            '监控模块返回信息：\n\n${server.rawDockerResponse}',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        );
       }
       
       List<dynamic> displayList = List.from(server.dockerContainers);
@@ -1066,8 +1073,8 @@ class _DockerViewState extends State<DockerView> {
              name = container['Names'];
           }
           
-          final String containerId = container['Id'] ?? container['id'] ?? '';
-          final status = container['State'] ?? container['Status'] ?? container['status'] ?? 'unknown';
+          final String containerId = (container['Id'] ?? container['id'] ?? container['ID'] ?? '').toString();
+          final status = container['State'] ?? container['Status'] ?? container['status'] ?? container['state'] ?? 'unknown';
           // Portainer list doesn't return live CPU/Mem, so we display Image name or State if cpu/mem is missing
           final hasCpu = container['cpu'] != null;
           final cpu = container['cpu']?.containsKey('total') == true ? container['cpu']['total'] : 0.0;
@@ -1078,7 +1085,7 @@ class _DockerViewState extends State<DockerView> {
           final image = container['Image'] ?? '';
           
           final statusStr = status.toString().toLowerCase();
-          final isRunning = statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up');
+          final bool isRunning = (container['running'] == true) || statusStr.contains('running') || statusStr.contains('healthy') || statusStr.contains('up') || statusStr.contains('运行');
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -1129,26 +1136,22 @@ class _DockerViewState extends State<DockerView> {
               trailing: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) async {
-                  if (containerId.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('容器ID为空，无法操作')));
-                    return;
-                  }
-                  
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在发送 $value 指令...')));
-                  bool success = await server.controlContainer(containerId, value);
+                  final success = await server.controlDocker(container, value);
                   if (success) {
-                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令 $value 执行成功！', style: const TextStyle(color: Colors.green))));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('指令执行成功')));
+                    }
                   } else {
-                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令 $value 执行失败！', style: const TextStyle(color: Colors.red))));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('指令执行失败（已尝试 Native/Portainer）')));
+                    }
                   }
                 },
                 itemBuilder: (context) => <PopupMenuEntry<String>>[
-                  if (!isRunning)
-                    const PopupMenuItem<String>(value: 'start', child: Text('启动 (Start)')),
-                  if (isRunning)
-                    const PopupMenuItem<String>(value: 'stop', child: Text('停止 (Stop)')),
-                  if (isRunning)
-                    const PopupMenuItem<String>(value: 'restart', child: Text('重启 (Restart)')),
+                  if (!isRunning) const PopupMenuItem<String>(value: 'start', child: Text('启动 (Start)')),
+                  if (isRunning) const PopupMenuItem<String>(value: 'stop', child: Text('停止 (Stop)')),
+                  if (isRunning) const PopupMenuItem<String>(value: 'restart', child: Text('重启 (Restart)')),
                 ],
               ),
             ),
@@ -1157,14 +1160,37 @@ class _DockerViewState extends State<DockerView> {
       );
     }
 
+    final total = server.dockerContainers.length;
+    final runningCount = server.dockerContainers.where((c) {
+      try {
+        if (c is Map && c['running'] == true) return true;
+        final s = (c['State'] ?? c['Status'] ?? c['status'] ?? '').toString().toLowerCase();
+        return s.contains('up') || s.contains('running') || s.contains('healthy');
+      } catch (_) {
+        return false;
+      }
+    }).length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Docker 控制台', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Docker 控制台（$runningCount/$total 运行中）', style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.manage_accounts),
             tooltip: '配置 Portainer 账号',
             onPressed: _showPortainerConfigDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy),
+            tooltip: '复制 Native Docker 源码预览（前 8KB）',
+            onPressed: server.rawDockerHtmlPreview.isEmpty
+                ? null
+                : () async {
+                    await Clipboard.setData(ClipboardData(text: server.rawDockerHtmlPreview));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制 Docker 源码预览')));
+                    }
+                  },
           ),
 
           PopupMenuButton<String>(

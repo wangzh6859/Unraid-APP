@@ -29,6 +29,7 @@ class ServerProvider extends ChangeNotifier {
   // Lists
   List<dynamic> dockerContainers = [];
   String rawDockerResponse = '';
+  String rawDockerHtmlPreview = '';
   List<dynamic> vms = [];
   String rawVmResponse = '正在执行抓取...';
   String rawVmHtmlPreview = '';
@@ -79,14 +80,36 @@ class ServerProvider extends ChangeNotifier {
       }
     }
 
-    // 3. Keep Portainer for Docker for now (since user didn't ask to remove portainer, just glances. Wait, user said "把docker容器数据来源也改成unraid底层". Ok, I will add native docker parsing later, but for this commit let's just make it connect!)
-    final dockerResult = await _portainer.getContainers();
-    if (dockerResult != null && dockerResult.containsKey('data')) {
+    // 3. Docker list: prefer Unraid native, fallback to Portainer
+    bool dockerOk = false;
+    final nativeDocker = await _unraidNative.getDockerContainers();
+    if (nativeDocker != null && nativeDocker.containsKey('error')) {
+      rawDockerResponse = nativeDocker['error'];
+    } else if (nativeDocker != null && nativeDocker.containsKey('data')) {
+      rawDockerResponse = nativeDocker['data'].toString();
+      if (nativeDocker.containsKey('raw')) {
+        final rawPayload = nativeDocker['raw']?.toString() ?? '';
+        rawDockerHtmlPreview = rawPayload.length > 8000 ? rawPayload.substring(0, 8000) : rawPayload;
+        final parsed = UnraidNativeParser.parseDockerContainers(rawPayload);
+        if (parsed.isNotEmpty) {
+          dockerContainers = parsed;
+          dockerOk = true;
+          rawDockerResponse += "\n[解析] Native Docker 容器数量: ${parsed.length}";
+        } else {
+          rawDockerResponse += "\n[解析提示] 未能从 Native Docker 响应解析出容器列表，将回退 Portainer。";
+        }
+      }
+    }
+
+    if (!dockerOk) {
+      final dockerResult = await _portainer.getContainers();
+      if (dockerResult != null && dockerResult.containsKey('data')) {
         final cData = dockerResult['data'];
         if (cData is List) {
-           dockerContainers = cData;
-           rawDockerResponse = 'Connected to Portainer';
+          dockerContainers = cData;
+          rawDockerResponse = 'Fallback: Connected to Portainer';
         }
+      }
     }
 
     isLoading = false;
@@ -109,6 +132,48 @@ class ServerProvider extends ChangeNotifier {
        await fetchStats(); 
      }
      return success;
+  }
+
+  Future<bool> controlDocker(dynamic container, String action) async {
+    // Prefer Unraid native by name if available; fallback to Portainer by Id.
+    String name = '';
+    String portainerId = '';
+
+    try {
+      if (container is Map) {
+        if (container['name'] != null) name = container['name'].toString();
+        if (container['Names'] != null && container['Names'] is List && container['Names'].isNotEmpty) {
+          name = container['Names'][0].toString().replaceAll('/', '');
+        }
+        portainerId = (container['Id'] ?? container['id'] ?? '').toString();
+      }
+    } catch (_) {}
+
+    // Try native action first.
+    if (name.isNotEmpty) {
+      final native = await _unraidNative.dockerAction(name, action);
+      if (!native.containsKey('error')) {
+        rawDockerResponse = 'Native Docker action sent: $action ($name)\nHTTP ${native['status']}';
+        notifyListeners();
+        await fetchStats();
+        return true;
+      }
+    }
+
+    // Fallback to Portainer if we have container id.
+    if (portainerId.isNotEmpty) {
+      final ok = await _portainer.containerAction(portainerId, action);
+      if (ok) {
+        rawDockerResponse = 'Fallback Portainer action ok: $action ($portainerId)';
+        notifyListeners();
+        await fetchStats();
+      }
+      return ok;
+    }
+
+    rawDockerResponse = '无法操作：缺少容器标识（name/Id）';
+    notifyListeners();
+    return false;
   }
 
   Future<bool> controlVm(String uuid, String action) async {

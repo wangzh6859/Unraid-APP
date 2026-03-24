@@ -166,6 +166,77 @@ class UnraidNativeParser {
 
     return results;
   }
+
+  /// Best-effort parsing of Unraid Docker list HTML/JSON.
+  ///
+  /// Output schema (list item):
+  /// { id: String?, name: String, status: String, running: bool, image: String? }
+  static List<Map<String, dynamic>> parseDockerContainers(String payload) {
+    final results = <Map<String, dynamic>>[];
+
+    String decode(String s) {
+      return s
+          .replaceAll('&amp;', '&')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&nbsp;', ' ')
+          .replaceAll('&#160;', ' ')
+          .replaceAll('\u00A0', ' ')
+          .replaceAll('&#39;', "'")
+          .trim();
+    }
+
+    String stripTags(String s) {
+      final noTags = s.replaceAll(RegExp('<[^>]+>'), ' ');
+      return decode(noTags).replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+
+    void addOne({String? id, required String name, String status = 'unknown', bool? running, String? image}) {
+      final n = decode(name);
+      if (n.isEmpty) return;
+      if (results.any((e) => (e['name'] ?? '') == n)) return;
+      final isRunning = running ?? status.toLowerCase().contains('up') || status.toLowerCase().contains('running');
+      results.add({
+        'id': id,
+        'name': n,
+        'status': status,
+        'running': isRunning,
+        'image': image,
+      });
+    }
+
+    try {
+      final html = payload.split('\u0000').first;
+
+      // Heuristic: each container usually has a row with a name link.
+      final reRow = RegExp('<tr[^>]*>[\s\S]*?</tr>', caseSensitive: false);
+      for (final m in reRow.allMatches(html)) {
+        final tr = m.group(0) ?? '';
+
+        // Name: first anchor text in row.
+        final nameM = RegExp('<a[^>]*>([^<]{1,120})</a>', caseSensitive: false).firstMatch(tr);
+        final name = nameM?.group(1) ?? '';
+        if (decode(name).isEmpty) continue;
+
+        // Status: Up/Exited/Paused or Chinese.
+        String status = 'unknown';
+        final statusM = RegExp('(Up[^<\n]{0,80}|Exited[^<\n]{0,80}|Paused[^<\n]{0,80}|运行中|已停止|停止|暂停)', caseSensitive: false).firstMatch(tr);
+        if (statusM != null) status = stripTags(statusM.group(1) ?? 'unknown');
+
+        bool? running;
+        final low = status.toLowerCase();
+        if (low.contains('up') || low.contains('running') || status.contains('运行中')) running = true;
+        if (low.contains('exited') || status.contains('已停止') || status == '停止') running = false;
+
+        addOne(name: name, status: status, running: running);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    return results;
+  }
 }
 
 

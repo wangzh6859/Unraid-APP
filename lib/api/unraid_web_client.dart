@@ -160,6 +160,83 @@ class UnraidWebClient {
       return {'error': 'VM 操作失败: $e'};
     }
   }
+
+  Future<Map<String, dynamic>?> getDockerContainers() async {
+    // Unraid WebGUI fills Docker list dynamically as well.
+    // Common endpoints (vary by version):
+    // - /plugins/dynamix.docker.manager/include/DockerContainers.php
+    // - /plugins/dynamix.docker.manager/include/DockerUpdate.php
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 登录失败'};
+
+    try {
+      String debugInfo = "";
+      debugInfo += "csrf_token: ${_csrfToken.isEmpty ? 'EMPTY' : 'OK'}\n";
+      debugInfo += "cookie: ${_cookie.isEmpty ? 'EMPTY' : 'OK'}\n\n";
+
+      // 1) Fetch /Docker page for sanity (optional)
+      final resPage = await _dio.get(
+        '${AppConfig.baseDomain}/Docker',
+        options: Options(headers: {'Cookie': _cookie}),
+      );
+      final pageBody = resPage.data?.toString() ?? '';
+      debugInfo += "[/Docker] Status: ${resPage.statusCode} Length: ${pageBody.length}\n";
+
+      // 2) Fetch dynamic Docker list HTML
+      final candidates = [
+        '/plugins/dynamix.docker.manager/include/DockerContainers.php',
+        '/plugins/dynamix.docker.manager/include/DockerUpdate.php',
+      ];
+
+      for (final p in candidates) {
+        final res = await _dio.get(
+          '${AppConfig.baseDomain}$p',
+          options: Options(headers: {'Cookie': _cookie}),
+        );
+        final body = res.data?.toString() ?? '';
+        debugInfo += "[$p] Status: ${res.statusCode} Length: ${body.length}\n";
+
+        if (res.statusCode == 200 && body.isNotEmpty) {
+          return {'data': debugInfo, 'raw': body, 'path': p};
+        }
+      }
+
+      return {'error': '无法获取 Docker 列表（所有候选接口都失败）', 'data': debugInfo};
+    } catch (e) {
+      return {'error': '抓取 Docker 列表失败: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> dockerAction(String nameOrId, String action) async {
+    // Best-effort native action. If this fails, caller should fallback to Portainer.
+    // action: start | stop | restart
+    final ok = await _ensureLogin();
+    if (!ok) return {'error': 'Unraid 登录失败'};
+
+    try {
+      // This endpoint/param set varies by Unraid version; we try a conservative POST.
+      final res = await _dio.post(
+        '${AppConfig.baseDomain}/plugins/dynamix.docker.manager/include/DockerUpdate.php',
+        data: {
+          'csrf_token': _csrfToken,
+          'action': action,
+          'name': nameOrId,
+          'response': 'json',
+        },
+        options: Options(
+          headers: {
+            'Cookie': _cookie,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        ),
+      );
+
+      return {'status': res.statusCode ?? 0, 'data': res.data};
+    } catch (e) {
+      return {'error': 'Docker 操作失败: $e'};
+    }
+  }
 }
+
 
 
