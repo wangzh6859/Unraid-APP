@@ -86,7 +86,7 @@ class UnraidNativeParser {
       //   <tr child-id='X' id='name-X' style='display:none'> ... nested tables ... </tr>
       // We should ONLY parse the parent rows; child rows contain nested <tr>/<td> which break naive parsing.
       final reParentTr = RegExp(
-        r"<tr[^>]*\bparent-id\s*=\s*['\"][^'\"]+['\"][^>]*>[\s\S]*?</tr>",
+        r'<tr[^>]*\bparent-id\s*=\s*[\'\"][^\'\"]+[\'\"][^>]*>[\s\S]*?</tr>',
         caseSensitive: false,
       );
       for (final trM in reParentTr.allMatches(html)) {
@@ -97,7 +97,7 @@ class UnraidNativeParser {
 
         // Name.
         final nameM = RegExp(
-          r"<td[^>]*class=['\"][^'\"]*vm-name[^'\"]*['\"][^>]*>[\s\S]*?<a[^>]*>([^<]+)</a>",
+          r'<td[^>]*class=[\'\"][^\'\"]*vm-name[^\'\"]*[\'\"][^>]*>[\s\S]*?<a[^>]*>([^<]+)</a>',
           caseSensitive: false,
         ).firstMatch(tr);
         final name = nameM?.group(1) ?? '';
@@ -106,7 +106,7 @@ class UnraidNativeParser {
         final vm = ensureVm(name);
 
         // UUID often appears on elements as uuid="...".
-        final uuidM = RegExp(r"uuid=['\"]([^'\"]+)['\"]", caseSensitive: false).firstMatch(tr);
+        final uuidM = RegExp(r'uuid=[\'\"]([^\'\"]+)[\'\"]', caseSensitive: false).firstMatch(tr);
         if (uuidM != null) vm['uuid'] = uuidM.group(1);
 
         // Status / running inference: icons used by Unraid.
@@ -139,7 +139,7 @@ class UnraidNativeParser {
         }
 
         // Autostart: search for class="autostart" input checked.
-        final autoM = RegExp(r"<input[^>]*class=['\"][^'\"]*autostart[^'\"]*['\"][^>]*>", caseSensitive: false).firstMatch(tr);
+        final autoM = RegExp(r'<input[^>]*class=[\'\"][^\'\"]*autostart[^\'\"]*[\'\"][^>]*>', caseSensitive: false).firstMatch(tr);
         if (autoM != null) {
           final input = autoM.group(0) ?? '';
           vm['autostart'] = RegExp('checked', caseSensitive: false).hasMatch(input);
@@ -149,7 +149,7 @@ class UnraidNativeParser {
       // If still empty, fallback: parse any row that contains vm-name (loose).
       if (results.isEmpty) {
         final reLoose = RegExp(
-          r"<tr[^>]*>[\s\S]*?<td[^>]*class=['\"][^'\"]*vm-name[^'\"]*['\"][^>]*>[\s\S]*?<a[^>]*>([^<]{1,80})</a>[\s\S]*?</tr>",
+          r'<tr[^>]*>[\s\S]*?<td[^>]*class=[\'\"][^\'\"]*vm-name[^\'\"]*[\'\"][^>]*>[\s\S]*?<a[^>]*>([^<]{1,80})</a>[\s\S]*?</tr>',
           caseSensitive: false,
         );
         for (final m in reLoose.allMatches(html)) {
