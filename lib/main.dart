@@ -1110,6 +1110,7 @@ class _DockerViewState extends State<DockerView> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+<<<<<<< HEAD
               leading: SizedBox(
                 width: 48,
                 height: 48,
@@ -1161,6 +1162,64 @@ class _DockerViewState extends State<DockerView> {
                     ),
                   ],
                 ),
+=======
+              leading: Stack(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Builder(
+                      builder: (_) {
+                        try {
+                          final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
+                          if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
+                            String url = iconPath;
+                            if (!url.startsWith('http')) {
+                              // Ensure no double slashes
+                              final base = AppConfig.baseDomain.endsWith('/') 
+                                  ? AppConfig.baseDomain.substring(0, AppConfig.baseDomain.length - 1) 
+                                  : AppConfig.baseDomain;
+                              url = '$base$iconPath';
+                            }
+                            return ClipOval(
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                                  color: isRunning ? Colors.green : Colors.grey,
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (_) {}
+
+                        return Icon(
+                          isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                          color: isRunning ? Colors.green : Colors.grey,
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: isRunning ? Colors.green : Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isDark ? Colors.black : Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+>>>>>>> bb4c607 (fix: sync lib/main.dart changes)
               ),
               title: Text(
                 name,
