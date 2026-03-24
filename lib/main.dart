@@ -1110,63 +1110,57 @@ class _DockerViewState extends State<DockerView> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: Stack(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Builder(
-                      builder: (_) {
-                        try {
-                          final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
-                          if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
-                            String url = iconPath;
-                            if (!url.startsWith('http')) {
-                              // Ensure no double slashes
-                              final base = AppConfig.baseDomain.endsWith('/') 
-                                  ? AppConfig.baseDomain.substring(0, AppConfig.baseDomain.length - 1) 
-                                  : AppConfig.baseDomain;
-                              url = '$base$iconPath';
-                            }
-                            return ClipOval(
-                              child: Image.network(
-                                url,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(
-                                  isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
-                                  color: isRunning ? Colors.green : Colors.grey,
-                                ),
-                              ),
-                            );
-                          }
-                        } catch (_) {}
-
-                        return Icon(
-                          isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
-                          color: isRunning ? Colors.green : Colors.grey,
-                        );
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
+              leading: SizedBox(
+                width: 48,
+                height: 48,
+                child: Stack(
+                  children: [
+                    Container(
                       decoration: BoxDecoration(
-                        color: isRunning ? Colors.green : Colors.red,
+                        color: isRunning ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle,
-                        border: Border.all(color: isDark ? Colors.black : Colors.white, width: 2),
+                      ),
+                      child: Builder(
+                        builder: (_) {
+                          try {
+                            final iconPath = (container is Map ? (container['iconPath'] ?? '') : '').toString();
+                            if (iconPath.isNotEmpty && AppConfig.baseDomain.isNotEmpty) {
+                              final url = '${AppConfig.baseDomain}$iconPath';
+                              return ClipOval(
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                                    color: isRunning ? Colors.green : Colors.grey,
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (_) {}
+
+                          return Icon(
+                            isRunning ? Icons.view_in_ar_rounded : Icons.stop_circle_outlined,
+                            color: isRunning ? Colors.green : Colors.grey,
+                          );
+                        },
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isRunning ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               title: Text(
                 name,
