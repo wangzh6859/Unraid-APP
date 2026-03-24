@@ -207,7 +207,7 @@ class UnraidWebClient {
     }
   }
 
-  Future<Map<String, dynamic>> dockerAction(String containerNameOrId, String action) async {
+  Future<Map<String, dynamic>> dockerAction({required String name, String? id, required String action}) async {
     // Best-effort native action. If this fails, caller should fallback to Portainer.
     // action: start | stop | restart
     final ok = await _ensureLogin();
@@ -215,38 +215,61 @@ class UnraidWebClient {
 
     final endpoint = '${AppConfig.baseDomain}/plugins/dynamix.docker.manager/include/DockerUpdate.php';
 
+    bool looksOk(dynamic body) {
+      final s = body?.toString().toLowerCase() ?? '';
+      if (s.contains('_error_') || s.contains('fatal') || s.contains('notice') || s.contains('warning')) return false;
+      if (s.contains('error') && !s.contains('no error')) return false;
+      return true;
+    }
+
     // Different Unraid versions use different parameter names.
-    // We'll try a few common shapes and accept 200/204 as "sent".
+    // We'll try a few common shapes. Some return HTTP 200 even on error, so we also inspect body.
     final attempts = <Map<String, dynamic>>[
       {
         'csrf_token': _csrfToken,
         'action': action,
-        'container': containerNameOrId,
+        'container': name,
       },
       {
         'csrf_token': _csrfToken,
         'action': action,
-        'name': containerNameOrId,
+        'name': name,
+      },
+      if (id != null && id.isNotEmpty)
+        {
+          'csrf_token': _csrfToken,
+          'action': action,
+          'id': id,
+          'container': name,
+        },
+      if (id != null && id.isNotEmpty)
+        {
+          'csrf_token': _csrfToken,
+          'action': action,
+          'ct': id,
+          'container': name,
+        },
+      {
+        'csrf_token': _csrfToken,
+        'cmd': action,
+        'container': name,
       },
       {
         'csrf_token': _csrfToken,
         'cmd': action,
-        'container': containerNameOrId,
-      },
-      {
-        'csrf_token': _csrfToken,
-        'cmd': action,
-        'name': containerNameOrId,
+        'name': name,
       },
       {
         'csrf_token': _csrfToken,
         'action': 'docker-$action',
-        'container': containerNameOrId,
+        'container': name,
       },
     ];
 
     try {
       int idx = 0;
+      Map<String, dynamic>? last;
+
       for (final data in attempts) {
         idx++;
         final res = await _dio.post(
@@ -262,20 +285,22 @@ class UnraidWebClient {
         );
 
         final code = res.statusCode ?? 0;
-        // Some responses are HTML; some are JSON.
         final body = res.data;
+        last = {'status': code, 'attempt': idx, 'data': body};
 
-        if (code == 200 || code == 204) {
+        if ((code == 200 || code == 204) && looksOk(body)) {
           return {
-            'status': code,
-            'attempt': idx,
+            ...last,
             'sent': true,
-            'data': body,
+            'used': data,
           };
         }
       }
 
-      return {'error': 'Docker 原生操作未命中可用参数组合', 'status': 0};
+      return {
+        'error': 'Docker 原生操作未命中可用参数组合或返回包含错误信息',
+        ...?last,
+      };
     } catch (e) {
       return {'error': 'Docker 操作失败: $e'};
     }

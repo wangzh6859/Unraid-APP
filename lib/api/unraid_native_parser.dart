@@ -192,7 +192,7 @@ class UnraidNativeParser {
       return decode(noTags).replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
-    void addOne({String? id, required String name, String status = 'unknown', bool? running, bool? autostart, String? image}) {
+    void addOne({String? id, required String name, String status = 'unknown', bool? running, bool? autostart, String? image, String? template}) {
       final n = decode(name);
       if (n.isEmpty) return;
       if (results.any((e) => (e['name'] ?? '') == n)) return;
@@ -204,6 +204,7 @@ class UnraidNativeParser {
         'running': isRunning,
         'autostart': autostart,
         'image': image,
+        'template': template,
       });
     }
 
@@ -264,12 +265,17 @@ class UnraidNativeParser {
           autostart = RegExp('checked', caseSensitive: false).hasMatch(input);
         }
 
+        // Template path: 3rd arg of addDockerContainerContext('NAME','hash','TEMPLATE',...)
+        String? template;
+        final tplM = RegExp("addDockerContainerContext\\('[^']*','[^']*','([^']*)'", caseSensitive: false).firstMatch(tr);
+        if (tplM != null) template = decode(tplM.group(1) ?? '');
+
         // Image: inside advanced "来自:" link
         String? image;
         final imgM = RegExp("来自:\\s*<a[^>]*>([^<]+)</a>", caseSensitive: false).firstMatch(tr);
         if (imgM != null) image = decode(imgM.group(1) ?? '');
 
-        addOne(id: id, name: name, status: status, running: running, autostart: autostart, image: image);
+        addOne(id: id, name: name, status: status, running: running, autostart: autostart, image: image, template: template);
       }
 
       // Fallback: previous heuristic (very loose)
