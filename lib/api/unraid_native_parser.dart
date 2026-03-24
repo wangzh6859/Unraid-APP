@@ -32,13 +32,15 @@ class UnraidNativeParser {
     };
   }
 
-  /// Best-effort parsing of Unraid WebGUI /VMs HTML.
+  /// Parse VM list from Unraid WebGUI dynamic endpoint response.
+  ///
+  /// In Unraid 7.x, the /VMs page loads the list via:
+  ///   GET /plugins/dynamix.vm.manager/include/VMMachines.php
+  /// which returns: "<tr ...>...</tr>...\0<script>...</script>"
   ///
   /// Output schema (list item):
   /// { name: String, status: String, running: bool }
-  ///
-  /// This parser is intentionally heuristic because Unraid's WebGUI markup changes across versions.
-  static List<Map<String, dynamic>> parseVms(String html) {
+  static List<Map<String, dynamic>> parseVms(String payload) {
     final results = <Map<String, dynamic>>[];
 
     String decode(String s) {
@@ -60,51 +62,41 @@ class UnraidNativeParser {
     }
 
     try {
-      // Pattern A: JS payload like name:"xxx" state:"RUNNING" / status:"running"
-      final reJs = RegExp(
-        'name\\s*[:=]\\s*[\"\\\']([^\"\\\']+)[\"\\\'][^\\n]{0,200}?(?:state|status)\\s*[:=]\\s*[\"\\\']([^\"\\\']+)[\"\\\']',
+      // Split off the HTML part (before the NUL separator), if present.
+      final html = payload.split('\u0000').first;
+
+      // Primary pattern: <td class="vm-name"> ... <a>VMNAME</a>
+      final reName = RegExp(
+        '<td[^>]*class=["\\\'][^"\\\']*vm-name[^"\\\']*["\\\'][^>]*>[\\s\\S]*?<a[^>]*>([^<]+)</a>',
         caseSensitive: false,
       );
-      for (final m in reJs.allMatches(html)) {
-        addVm(m.group(1) ?? '', status: (m.group(2) ?? 'unknown'));
+      final matches = reName.allMatches(html).toList();
+      for (final m in matches) {
+        final name = m.group(1) ?? '';
+        // Try to infer running/stopped from nearby markup.
+        final start = (m.start - 250) < 0 ? 0 : (m.start - 250);
+        final end = (m.end + 250) > html.length ? html.length : (m.end + 250);
+        final window = html.substring(start, end).toLowerCase();
+
+        bool? running;
+        String status = 'unknown';
+        if (window.contains('fa-play-circle') || window.contains('running') || window.contains('started')) {
+          running = true;
+          status = 'running';
+        }
+        if (window.contains('fa-stop-circle') || window.contains('stopped') || window.contains('shutdown') || window.contains('shut down')) {
+          running = false;
+          status = 'stopped';
+        }
+
+        addVm(name, status: status, running: running);
       }
 
-      // Pattern B: table row with data-name or data-vm
-      final reDataAttr = RegExp('data-(?:vm|name)=[\"\\\']([^\"\\\']+)[\"\\\']', caseSensitive: false);
-      for (final m in reDataAttr.allMatches(html)) {
-        addVm(m.group(1) ?? '');
-      }
-
-      // Pattern C: common HTML: <td class="...name...">VMNAME</td>
-      final reTdName = RegExp('<td[^>]*class=[\"\\\'][^\"\\\']*(?:name|vmname)[^\"\\\']*[\"\\\'][^>]*>([^<]{1,80})</td>', caseSensitive: false);
-      for (final m in reTdName.allMatches(html)) {
-        addVm(m.group(1) ?? '');
-      }
-
-      // Pattern D: links: /VMs/<name> or onclick with vm name
-      final reLink = RegExp('/VMs\\?[^\"\\\']*name=([^&\"\\\']+)', caseSensitive: false);
-      for (final m in reLink.allMatches(html)) {
-        addVm(Uri.decodeComponent(m.group(1) ?? ''));
-      }
-
-      // Try to infer running status if markup includes "running" near the VM name.
-      // (Very heuristic, but better than nothing.)
-      for (final vm in results) {
-        final name = (vm['name'] ?? '').toString();
-        if (name.isEmpty) continue;
-        final idx = html.toLowerCase().indexOf(name.toLowerCase());
-        if (idx >= 0) {
-          final start = (idx - 200) < 0 ? 0 : (idx - 200);
-          final end = (idx + 200) > html.length ? html.length : (idx + 200);
-          final window = html.substring(start, end).toLowerCase();
-          if (window.contains('running') || window.contains('started') || window.contains('up')) {
-            vm['running'] = true;
-            if ((vm['status'] ?? 'unknown') == 'unknown') vm['status'] = 'running';
-          }
-          if (window.contains('stopped') || window.contains('shutdown') || window.contains('shut down')) {
-            vm['running'] = false;
-            if ((vm['status'] ?? 'unknown') == 'unknown') vm['status'] = 'stopped';
-          }
+      // Fallback: any anchor inside a row that looks like VM config link
+      if (results.isEmpty) {
+        final reAnyA = RegExp('<tr[^>]*>[\\s\\S]*?<a[^>]*>([^<]{1,80})</a>[\\s\\S]*?</tr>', caseSensitive: false);
+        for (final m in reAnyA.allMatches(html)) {
+          addVm(m.group(1) ?? '');
         }
       }
     } catch (_) {
@@ -114,3 +106,4 @@ class UnraidNativeParser {
     return results;
   }
 }
+

@@ -67,11 +67,11 @@ class ServerProvider extends ChangeNotifier {
     } else if (vmResult != null && vmResult.containsKey('data')) {
       rawVmResponse = vmResult['data'].toString();
       if (vmResult.containsKey('raw')) {
-        final rawHtml = vmResult['raw']?.toString() ?? '';
+        final rawPayload = vmResult['raw']?.toString() ?? '';
         // Keep a preview for user-assisted debugging.
-        rawVmHtmlPreview = rawHtml.length > 8000 ? rawHtml.substring(0, 8000) : rawHtml;
+        rawVmHtmlPreview = rawPayload.length > 8000 ? rawPayload.substring(0, 8000) : rawPayload;
 
-        final parsed = UnraidNativeParser.parseVms(rawHtml);
+        final parsed = UnraidNativeParser.parseVms(rawPayload);
         vms = parsed;
         if (parsed.isEmpty) {
           rawVmResponse += "\n\n[解析提示] 未能从 /VMs HTML 解析出 VM 列表（可能是版本差异）。\n你可以在本页点击【复制/VMs源码(前8KB)】发给我，我来增强解析器。\n";

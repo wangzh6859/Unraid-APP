@@ -84,8 +84,9 @@ class UnraidWebClient {
   }
 
   Future<Map<String, dynamic>?> getVms() async {
-    // Stable path: fetch /VMs page and (later) parse it.
-    // Do NOT hard-depend on /webGui/scripts/vmmanager because it varies by Unraid version and often 404s.
+    // Unraid 7.x: /VMs page body does NOT contain the VM list.
+    // The table <tbody id="kvm_list"> is filled by XHR:
+    // GET /plugins/dynamix.vm.manager/include/VMMachines.php
     if (_csrfToken.isEmpty || _cookie.isEmpty) {
       bool ok = await login();
       if (!ok) return {'error': 'Unraid 登录失败'};
@@ -96,26 +97,39 @@ class UnraidWebClient {
       debugInfo += "csrf_token: ${_csrfToken.isEmpty ? 'EMPTY' : 'OK'}\n";
       debugInfo += "cookie: ${_cookie.isEmpty ? 'EMPTY' : 'OK'}\n\n";
 
-      final res = await _dio.get(
+      // 1) Fetch /VMs (optional, only for debug / sanity)
+      final resPage = await _dio.get(
         '${AppConfig.baseDomain}/VMs',
         options: Options(headers: {'Cookie': _cookie}),
       );
+      final pageBody = resPage.data?.toString() ?? '';
+      debugInfo += "[/VMs] Status: ${resPage.statusCode} Length: ${pageBody.length}\n";
 
-      final body = res.data?.toString() ?? '';
-      debugInfo += "[/VMs] Status: ${res.statusCode} Length: ${body.length}\n";
+      // 2) Fetch dynamic VM list HTML
+      final resList = await _dio.get(
+        '${AppConfig.baseDomain}/plugins/dynamix.vm.manager/include/VMMachines.php',
+        queryParameters: {
+          // 'show' corresponds to $.cookie('vmshow') in WebGUI; optional.
+        },
+        options: Options(headers: {'Cookie': _cookie}),
+      );
+      final listBody = resList.data?.toString() ?? '';
+      debugInfo += "[/VMMachines.php] Status: ${resList.statusCode} Length: ${listBody.length}\n";
 
-      if (res.statusCode == 200 && body.isNotEmpty) {
-        // Return both debug and raw payload for future parsing.
-        return {'data': debugInfo, 'raw': body};
+      if (resList.statusCode == 200 && listBody.isNotEmpty) {
+        // VMMachines.php returns: "<tr>...</tr>...\0<script>...</script>"
+        // We keep the raw response for parsing.
+        return {'data': debugInfo, 'raw': listBody};
       }
 
       return {
-        'error': '无法获取 /VMs 页面: HTTP ${res.statusCode} (len=${body.length})',
+        'error': '无法获取 VMMachines.php: HTTP ${resList.statusCode} (len=${listBody.length})',
         'data': debugInfo,
       };
     } catch (e) {
-      return {'error': '抓取 /VMs 失败: $e'};
+      return {'error': '抓取 VM 列表失败: $e'};
     }
   }
 }
+
 
